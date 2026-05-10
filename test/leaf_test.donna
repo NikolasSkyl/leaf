@@ -9,10 +9,10 @@ pub fn smoke_test() -> String:
 
 pub fn generated_urls_test() -> String:
   let root = "/tmp/leaf-generated-urls-test"
-  let leaf_bin = "/Users/nikolas/Desktop/Donna-Lang/donna personal packages/leaf/build/bin/leaf"
+  let leaf_bin = string.trim(shell.output("pwd", [])) <> "/build/bin/leaf"
   let _ = shell.run("rm -rf " <> root)
   let _ = shell.run("mkdir -p " <> root)
-  let _ = shell.run("cd " <> root <> " && '" <> leaf_bin <> "' init demo >/dev/null")
+  let _ = shell.run("'" <> leaf_bin <> "' init " <> root <> "/demo >/dev/null")
   let _ = shell.run("cd " <> root <> "/demo && '" <> leaf_bin <> "' build >/dev/null")
   let home = files.read(root <> "/demo/public/index.html")
   let sitemap = files.read(root <> "/demo/public/sitemap.xml")
