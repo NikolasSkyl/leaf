@@ -1,0 +1,58 @@
+// leaf/cli — Command line interface.
+
+import argparse
+import donna/string
+import leaf/commands
+import leaf/ui
+
+pub fn run() -> Nil:
+  let args = argparse.from_argv()
+  let pos = argparse.positional(args)
+  let cmd = first(pos, "build")
+  case wants_help(args, cmd):
+    True -> echo ui.help()
+    False ->
+      case wants_version(args, cmd):
+        True -> echo ui.version
+        False -> dispatch(args, pos, cmd)
+
+fn dispatch(args: List(#(String, String)), pos: List(String), cmd: String) -> Nil:
+  case cmd:
+    "init" -> echo commands.init(second(pos, "site"))
+    "theme" -> echo commands.theme(second(pos, "default"))
+    "new" -> echo commands.new(second(pos, "post"), third(pos, "untitled"))
+    "build" -> echo commands.build()
+    "serve" -> echo commands.serve(port(args), argparse.has(args, "watch"))
+    "serve-only" -> echo commands.serve_only(port(args))
+    "clean" -> echo commands.clean()
+    "doctor" -> echo commands.doctor()
+    "list" -> echo commands.list_content()
+    "help" -> echo ui.help()
+    _ -> echo ui.help()
+
+fn wants_help(args: List(#(String, String)), cmd: String) -> Bool:
+  argparse.has(args, "h") || argparse.has(args, "help") || string.equal(cmd, "-h") || string.equal(cmd, "--help")
+
+fn wants_version(args: List(#(String, String)), cmd: String) -> Bool:
+  argparse.has(args, "v") || argparse.has(args, "version") || string.equal(cmd, "-v") || string.equal(cmd, "--version")
+
+fn port(args: List(#(String, String))) -> Int:
+  let raw = argparse.get(args, "port")
+  case string.is_empty(raw):
+    True -> 1313
+    False -> string.to_int(raw)
+
+fn first(xs: List(String), default: String) -> String:
+  case xs:
+    [] -> default
+    [x, ..] -> x
+
+fn second(xs: List(String), default: String) -> String:
+  case xs:
+    [_, x, ..] -> x
+    _ -> default
+
+fn third(xs: List(String), default: String) -> String:
+  case xs:
+    [_, _, x, ..] -> x
+    _ -> default

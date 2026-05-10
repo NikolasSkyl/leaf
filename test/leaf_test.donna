@@ -1,0 +1,27 @@
+import leaf
+import donna/files
+import donna/shell
+import donna/string
+import unittest/should
+
+pub fn smoke_test() -> String:
+  should.pass()
+
+pub fn generated_urls_test() -> String:
+  let root = "/tmp/leaf-generated-urls-test"
+  let leaf_bin = "/Users/nikolas/Desktop/Donna-Lang/donna personal packages/leaf/build/bin/leaf"
+  let _ = shell.run("rm -rf " <> root)
+  let _ = shell.run("mkdir -p " <> root)
+  let _ = shell.run("cd " <> root <> " && '" <> leaf_bin <> "' init demo >/dev/null")
+  let _ = shell.run("cd " <> root <> "/demo && '" <> leaf_bin <> "' build >/dev/null")
+  let home = files.read(root <> "/demo/public/index.html")
+  let sitemap = files.read(root <> "/demo/public/sitemap.xml")
+  case string.contains(home, "/posts/markdown-tour/"):
+    False -> should.fail("expected post link in home page")
+    True ->
+      case string.contains(sitemap, "http://localhost:1313/posts/markdown-tour/"):
+        False -> should.fail("expected post link in sitemap")
+        True ->
+          case string.contains(sitemap, "http://localhost:1313/about/"):
+            False -> should.fail("expected about link in sitemap")
+            True -> should.pass()

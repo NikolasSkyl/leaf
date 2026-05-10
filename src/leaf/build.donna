@@ -1,0 +1,47 @@
+// leaf/build — Build orchestration.
+
+import donna/files
+import donna/list
+import donna/shell
+import leaf/content
+import leaf/render
+import leaf/site
+import leaf/ui
+
+pub fn run() -> String:
+  let config = site.read()
+  let out = site.output_dir(config)
+  let _ = files.mkdir(out)
+  let _ = copy_static(config)
+  let pages = list.reverse(content.collect(config))
+  let rendered = render_pages(config, pages, 0)
+  let _ = render.render_home(config, pages)
+  let _ = render.render_sitemap(config, pages)
+  let _ = render.render_rss(config, pages)
+  let _ = render.render_feed_alias(config)
+  ui.ok("Built " <> int_to_string(rendered) <> " pages into " <> out)
+
+fn render_pages(config: site.Config, pages: List(content.Page), count: Int) -> Int:
+  case pages:
+    [] -> count
+    [page, ..rest] ->
+      case content.slug(page):
+        "index" -> render_pages(config, rest, count)
+        _ ->
+          let _ = render.render_page(config, page)
+          render_pages(config, rest, count + 1)
+
+fn copy_static(config: site.Config) -> Int:
+  let out = site.output_dir(config)
+  let out_assets = files.join(out, "assets")
+  let _ = shell.run("rm -rf " <> out_assets)
+  let _ = shell.run("mkdir -p " <> out_assets)
+  let _ = copy_dir(site.theme_assets_dir(config), out_assets)
+  let _ = copy_dir(site.asset_dir(config), out_assets)
+  let _ = copy_dir(site.theme_static_dir(config), out)
+  copy_dir(site.static_dir(config), out)
+
+fn copy_dir(src: String, dst: String) -> Int:
+  case files.is_dir(src):
+    True -> shell.run("cp -R " <> files.join(src, ".") <> " " <> dst)
+    False -> 0

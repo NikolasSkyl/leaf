@@ -1,0 +1,4 @@
+import leaf/cli
+
+pub fn main() -> Nil:
+  cli.run()

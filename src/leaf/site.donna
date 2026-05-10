@@ -1,0 +1,136 @@
+// leaf/site — Site configuration.
+
+import parsetoml/parsetoml
+import donna/files
+import donna/string
+
+pub type Config:
+  Config(
+    title: String,
+    base_url: String,
+    content_dir: String,
+    output_dir: String,
+    asset_dir: String,
+    static_dir: String,
+    theme: String,
+    posts_per_page: Int,
+    author: String,
+    social: String,
+    comments: String,
+    contact: String
+  )
+
+pub fn read() -> Config:
+  case parsetoml.parse(files.read("config.toml")):
+    parsetoml.Err(_) -> default()
+    parsetoml.Ok(toml) ->
+      Config(
+        title: toml_string(toml, "title", "Leaf"),
+        base_url: toml_string(toml, "base_url", ""),
+        content_dir: toml_string(toml, "content_dir", "content"),
+        output_dir: toml_string(toml, "output_dir", "public"),
+        asset_dir: toml_string(toml, "asset_dir", "assets"),
+        static_dir: toml_string(toml, "static_dir", "static"),
+        theme: toml_string(toml, "theme", "default"),
+        posts_per_page: toml_int(toml, "paginate", toml_int(toml, "posts_per_page", 5)),
+        author: toml_string(toml, "author", "Leaf"),
+        social: toml_string(toml, "social", ""),
+        comments: toml_string(toml, "comments", "none"),
+        contact: toml_string(toml, "contact", "mailto:hello@example.com")
+      )
+
+pub fn default() -> Config:
+  Config(
+    title: "Leaf",
+    base_url: "",
+    content_dir: "content",
+    output_dir: "public",
+    asset_dir: "assets",
+    static_dir: "static",
+    theme: "default",
+    posts_per_page: 5,
+    author: "Leaf",
+    social: "",
+    comments: "none",
+    contact: "mailto:hello@example.com"
+  )
+
+pub fn title(c: Config) -> String:
+  case c:
+    Config(title: x, base_url: _, content_dir: _, output_dir: _, asset_dir: _, static_dir: _, theme: _, posts_per_page: _, author: _, social: _, comments: _, contact: _) -> x
+
+pub fn base_url(c: Config) -> String:
+  case c:
+    Config(title: _, base_url: x, content_dir: _, output_dir: _, asset_dir: _, static_dir: _, theme: _, posts_per_page: _, author: _, social: _, comments: _, contact: _) -> x
+
+pub fn content_dir(c: Config) -> String:
+  case c:
+    Config(title: _, base_url: _, content_dir: x, output_dir: _, asset_dir: _, static_dir: _, theme: _, posts_per_page: _, author: _, social: _, comments: _, contact: _) -> x
+
+pub fn output_dir(c: Config) -> String:
+  case c:
+    Config(title: _, base_url: _, content_dir: _, output_dir: x, asset_dir: _, static_dir: _, theme: _, posts_per_page: _, author: _, social: _, comments: _, contact: _) -> x
+
+pub fn asset_dir(c: Config) -> String:
+  case c:
+    Config(title: _, base_url: _, content_dir: _, output_dir: _, asset_dir: x, static_dir: _, theme: _, posts_per_page: _, author: _, social: _, comments: _, contact: _) -> x
+
+pub fn static_dir(c: Config) -> String:
+  case c:
+    Config(title: _, base_url: _, content_dir: _, output_dir: _, asset_dir: _, static_dir: x, theme: _, posts_per_page: _, author: _, social: _, comments: _, contact: _) -> x
+
+pub fn theme(c: Config) -> String:
+  case c:
+    Config(title: _, base_url: _, content_dir: _, output_dir: _, asset_dir: _, static_dir: _, theme: x, posts_per_page: _, author: _, social: _, comments: _, contact: _) -> x
+
+pub fn posts_per_page(c: Config) -> Int:
+  case c:
+    Config(title: _, base_url: _, content_dir: _, output_dir: _, asset_dir: _, static_dir: _, theme: _, posts_per_page: x, author: _, social: _, comments: _, contact: _) -> x
+
+pub fn author(c: Config) -> String:
+  case c:
+    Config(title: _, base_url: _, content_dir: _, output_dir: _, asset_dir: _, static_dir: _, theme: _, posts_per_page: _, author: x, social: _, comments: _, contact: _) -> x
+
+pub fn social(c: Config) -> String:
+  case c:
+    Config(title: _, base_url: _, content_dir: _, output_dir: _, asset_dir: _, static_dir: _, theme: _, posts_per_page: _, author: _, social: x, comments: _, contact: _) -> x
+
+pub fn comments(c: Config) -> String:
+  case c:
+    Config(title: _, base_url: _, content_dir: _, output_dir: _, asset_dir: _, static_dir: _, theme: _, posts_per_page: _, author: _, social: _, comments: x, contact: _) -> x
+
+pub fn contact(c: Config) -> String:
+  case c:
+    Config(title: _, base_url: _, content_dir: _, output_dir: _, asset_dir: _, static_dir: _, theme: _, posts_per_page: _, author: _, social: _, comments: _, contact: x) -> x
+
+pub fn theme_dir(c: Config) -> String:
+  files.join("themes", theme(c))
+
+pub fn layouts_dir(c: Config) -> String:
+  files.join(theme_dir(c), "layouts")
+
+pub fn theme_assets_dir(c: Config) -> String:
+  files.join(theme_dir(c), "assets")
+
+pub fn theme_static_dir(c: Config) -> String:
+  files.join(theme_dir(c), "static")
+
+pub fn asset_base(c: Config) -> String:
+  case string.is_empty(base_url(c)):
+    True -> "/assets"
+    False -> base_url(c) <> "/assets"
+
+pub fn url(c: Config, path: String) -> String:
+  case string.is_empty(base_url(c)):
+    True -> "/" <> path
+    False -> base_url(c) <> "/" <> path
+
+fn toml_string(t: parsetoml.TomlValue, key: String, default_value: String) -> String:
+  case parsetoml.get_string(t, key):
+    parsetoml.Ok(s) -> s
+    parsetoml.Err(_) -> default_value
+
+fn toml_int(t: parsetoml.TomlValue, key: String, default_value: Int) -> Int:
+  case parsetoml.get_int(t, key):
+    parsetoml.Ok(n) -> n
+    parsetoml.Err(_) -> default_value

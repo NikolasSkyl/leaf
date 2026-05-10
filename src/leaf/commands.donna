@@ -1,0 +1,141 @@
+// leaf/commands — User-facing commands.
+
+import donna/files
+import donna/list
+import donna/shell
+import donna/string
+import leaf/build
+import leaf/content
+import leaf/scaffold
+import leaf/site
+import leaf/ui
+import mongoose
+
+pub fn init(name: String) -> String:
+  scaffold.init(name)
+
+pub fn theme(name: String) -> String:
+  scaffold.theme(name)
+
+pub fn new(kind: String, slug: String) -> String:
+  let normalized = normalize_kind(kind)
+  let real_slug = normalize_slug(kind, slug)
+  let path = content_path(normalized, real_slug)
+  case files.exists(path):
+    True -> ui.warn("Content already exists: " <> path)
+    False ->
+      let _ = shell.run("mkdir -p " <> files.dirname(path))
+      let raw = scaffold.archetype_for(normalized)
+      let rendered = string.replace(string.replace(string.replace(raw, "{{title}}", title_from_slug(real_slug)), "{{slug}}", content_slug(normalized, real_slug)), "{{date_now}}", shell.output("date", ["+%Y-%m-%d"]))
+      let _ = files.write(path, rendered)
+      ui.ok("Created " <> path)
+
+pub fn build() -> String:
+  build.run()
+
+pub fn clean() -> String:
+  let config = site.read()
+  let out = site.output_dir(config)
+  let _ = shell.run("rm -rf " <> out)
+  ui.ok("Removed " <> out)
+
+pub fn serve(port: Int, should_watch: Bool) -> String:
+  let built = build.run()
+  echo built
+  case should_watch:
+    True ->
+      let _ = shell.run("leaf serve-only --port " <> int_to_string(port) <> " >/dev/null 2>&1 &")
+      watch()
+    False -> serve_only(port)
+
+pub fn serve_only(port: Int) -> String:
+  let config = site.read()
+  echo ui.ok("Serving " <> site.output_dir(config) <> " at http://localhost:" <> int_to_string(port))
+  let _ = mongoose.serve(site.output_dir(config), port)
+  ui.ok("Server stopped")
+
+fn watch() -> String:
+  echo ui.warn("watch currently rebuilds every 2 seconds; use Ctrl-C to stop")
+  watch_loop()
+
+fn watch_loop() -> String:
+  echo build.run()
+  let _ = shell.run("sleep 2")
+  watch_loop()
+
+fn title_from_slug(slug: String) -> String:
+  string.replace(slug, "-", " ")
+
+pub fn doctor() -> String:
+  let config = site.read()
+  checks(config, [
+    #("config.toml", files.exists("config.toml")),
+    #("content", files.is_dir(site.content_dir(config))),
+    #("theme", files.is_dir(site.theme_dir(config))),
+    #("layouts", files.is_dir(site.layouts_dir(config))),
+    #("page layout", files.exists(files.join(site.layouts_dir(config), "page.html"))),
+    #("home layout", files.exists(files.join(site.layouts_dir(config), "home.html"))),
+    #("post card partial", files.exists(files.join(files.join(site.layouts_dir(config), "_partials"), "post_card.html"))),
+    #("theme assets", files.is_dir(site.theme_assets_dir(config)))
+  ], "")
+
+pub fn list_content() -> String:
+  let config = site.read()
+  list_pages(list.reverse(content.collect_all(config)), "")
+
+fn checks(config: site.Config, items: List(#(String, Bool)), acc: String) -> String:
+  case items:
+    [] -> acc <> ui.ok("doctor finished")
+    [#(label, passed), ..rest] ->
+      case passed:
+        True -> checks(config, rest, acc <> ui.ok(label) <> "\n")
+        False -> checks(config, rest, acc <> ui.err(label) <> "\n")
+
+fn list_pages(pages: List(content.Page), acc: String) -> String:
+  case pages:
+    [] -> acc
+    [page, ..rest] ->
+      let state = case content.draft(page):
+        True -> "draft"
+        False -> "live"
+      let line = content.kind(page) <> "  " <> state <> "  " <> content.date(page) <> "  " <> int_to_string(content.weight(page)) <> "  " <> content.slug(page) <> "\n"
+      list_pages(rest, acc <> line)
+
+fn normalize_kind(kind: String) -> String:
+  case kind:
+    "page" -> "page"
+    "doc" -> "doc"
+    "docs" -> "doc"
+    "book" -> "book"
+    "books" -> "book"
+    "post" -> "post"
+    "posts" -> "post"
+    _ -> "post"
+
+fn normalize_slug(kind: String, slug: String) -> String:
+  case normalize_kind(kind):
+    "post" ->
+      case kind:
+        "post" -> slug
+        "posts" -> slug
+        "page" -> slug
+        "doc" -> slug
+        "docs" -> slug
+        "book" -> slug
+        "books" -> slug
+        _ -> kind
+    _ -> slug
+
+fn content_path(kind: String, slug: String) -> String:
+  case kind:
+    "page" -> files.join("content", slug <> ".md")
+    "doc" -> files.join(files.join("content", "docs"), slug <> ".md")
+    "book" -> files.join(files.join("content", "books"), slug <> ".md")
+    _ -> files.join(files.join("content", "posts"), slug <> ".md")
+
+fn content_slug(kind: String, slug: String) -> String:
+  case kind:
+    "page" -> slug
+    "doc" -> "docs/" <> slug
+    "book" -> "books/" <> slug
+    _ -> "posts/" <> slug

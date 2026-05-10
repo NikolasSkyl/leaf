@@ -1,0 +1,192 @@
+// leaf/render — HTML and XML rendering.
+
+import donna/files
+import donna/list
+import donna/shell
+import donna/string
+import markdown
+import mustache
+import leaf/content
+import leaf/site
+
+pub fn render_page(config: site.Config, page: content.Page) -> Int:
+  let layout = read_layout(config, content.layout(page))
+  let markdown_source = markdown_body(content.source(page))
+  let html = markdown.to_html(markdown_source)
+  let output = mustache.render_with_partials(layout, values(config, page, html), partials(config))
+  let path = output_path(config, content.slug(page))
+  let _ = shell.run("mkdir -p " <> files.dirname(path))
+  files.write(path, output)
+
+pub fn render_home(config: site.Config, pages: List(content.Page)) -> Int:
+  let layout = read_layout(config, "home")
+  let first_page = list.take(pages, site.posts_per_page(config))
+  let cards = page_cards(config, first_page, "")
+  let output = mustache.render_with_partials(layout, common(config, [
+    #("title", site.title(config)),
+    #("content", cards),
+    #("pagination", pagination(config, pages, 1))
+  ]), partials(config))
+  let _ = files.write(files.join(site.output_dir(config), "index.html"), output)
+  render_home_pages(config, layout, list.drop(pages, site.posts_per_page(config)), 2)
+
+pub fn render_sitemap(config: site.Config, pages: List(content.Page)) -> Int:
+  let xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+    <> "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
+    <> sitemap_urls(config, pages, "  <url><loc>" <> site.url(config, "") <> "</loc></url>\n")
+    <> "</urlset>\n"
+  files.write(files.join(site.output_dir(config), "sitemap.xml"), xml)
+
+pub fn render_rss(config: site.Config, pages: List(content.Page)) -> Int:
+  let xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+    <> "<rss version=\"2.0\"><channel>\n"
+    <> "<title>" <> site.title(config) <> "</title>\n"
+    <> "<link>" <> site.base_url(config) <> "</link>\n"
+    <> "<description>" <> site.title(config) <> "</description>\n"
+    <> rss_items(config, pages, "")
+    <> "</channel></rss>\n"
+  files.write(files.join(site.output_dir(config), "rss.xml"), xml)
+
+pub fn render_feed_alias(config: site.Config) -> Int:
+  files.copy(files.join(site.output_dir(config), "rss.xml"), files.join(site.output_dir(config), "feed.xml"))
+
+fn read_layout(config: site.Config, name: String) -> String:
+  let path = files.join(site.layouts_dir(config), name <> ".html")
+  case files.exists(path):
+    True -> files.read(path)
+    False -> files.read(files.join(site.layouts_dir(config), "page.html"))
+
+fn partials(config: site.Config) -> List(#(String, String)):
+  let dir = files.join(site.layouts_dir(config), "_partials")
+  [
+    #("head", files.read(files.join(dir, "head.html"))),
+    #("head_css", files.read(files.join(files.join(dir, "head"), "css.html"))),
+    #("head_js", files.read(files.join(files.join(dir, "head"), "js.html"))),
+    #("header", files.read(files.join(dir, "header.html"))),
+    #("menu", files.read(files.join(dir, "menu.html"))),
+    #("footer", files.read(files.join(dir, "footer.html"))),
+    #("post_card", files.read(files.join(dir, "post_card.html")))
+  ]
+
+fn values(config: site.Config, page: content.Page, html: String) -> List(#(String, String)):
+  let slug = content.slug(page)
+  let url = case string.equal(slug, "index"):
+    True -> ""
+    False -> slug <> "/"
+  common(config, [
+    #("title", content.title(page)),
+    #("slug", slug),
+    #("url", url),
+    #("type", content.kind(page)),
+    #("date", content.date(page)),
+    #("tags", content.tags(page)),
+    #("read_time", int_to_string(content.read_time(page))),
+    #("source", content.source(page)),
+    #("content", html),
+    #("comments", comments_html(config)),
+    #("contact", contact_html(config))
+  ])
+
+fn common(config: site.Config, pairs: List(#(String, String))) -> List(#(String, String)):
+  list.append([
+    #("site_title", site.title(config)),
+    #("base_url", site.base_url(config)),
+    #("asset_base", site.asset_base(config)),
+    #("author", site.author(config)),
+    #("social", site.social(config)),
+    #("year_now", shell.output("date", ["+%Y"])),
+    #("date_now", shell.output("date", ["+%Y-%m-%d"])),
+    #("time_now", shell.output("date", ["+%H:%M:%S"]))
+  ], pairs)
+
+fn page_cards(config: site.Config, pages: List(content.Page), acc: String) -> String:
+  case pages:
+    [] -> acc
+    [p, ..rest] ->
+      case string.equal(content.slug(p), "index"):
+        True -> page_cards(config, rest, acc)
+        False ->
+          let title = content.title(p)
+          let slug = content.slug(p)
+          let kind = content.kind(p)
+          let date = content.date(p)
+          let read_time = int_to_string(content.read_time(p))
+          let card = "<article class=\"post-card\"><p class=\"eyebrow\">" <> kind <> "</p><h2><a href=\"/" <> slug <> "/\">" <> title <> "</a></h2><p>" <> date <> " · " <> read_time <> " min read</p></article>"
+          page_cards(config, rest, acc <> card)
+
+fn markdown_body(path: String) -> String:
+  strip_front_matter(string.split(files.read(path), "\n"))
+
+fn strip_front_matter(lines: List(String)) -> String:
+  case lines:
+    ["---", ..rest] -> read_body_after_front(rest)
+    _ -> string.join(lines, "\n")
+
+fn read_body_after_front(lines: List(String)) -> String:
+  case lines:
+    [] -> ""
+    [line, ..rest] ->
+      case string.equal(line, "---"):
+        True -> string.join(rest, "\n")
+        False -> read_body_after_front(rest)
+
+fn render_home_pages(config: site.Config, layout: String, pages: List(content.Page), page_num: Int) -> Int:
+  case list.is_empty(pages):
+    True -> 0
+    False ->
+      let chunk = list.take(pages, site.posts_per_page(config))
+      let out_dir = files.join(site.output_dir(config), files.join("page", int_to_string(page_num)))
+      let _ = shell.run("mkdir -p " <> out_dir)
+      let output = mustache.render_with_partials(layout, common(config, [
+        #("title", site.title(config) <> " - Page " <> int_to_string(page_num)),
+        #("content", page_cards(config, chunk, "")),
+        #("pagination", pagination(config, pages, page_num))
+      ]), partials(config))
+      let _ = files.write(files.join(out_dir, "index.html"), output)
+      render_home_pages(config, layout, list.drop(pages, site.posts_per_page(config)), page_num + 1)
+
+fn pagination(config: site.Config, pages: List(content.Page), page_num: Int) -> String:
+  let total = list.length(pages)
+  let per = site.posts_per_page(config)
+  case total > per:
+    True -> "<nav class=\"pagination\"><span>Page " <> int_to_string(page_num) <> "</span><a href=\"/page/" <> int_to_string(page_num + 1) <> "/\">Next</a></nav>"
+    False -> ""
+
+fn output_path(config: site.Config, slug: String) -> String:
+  case string.equal(slug, "index"):
+    True -> files.join(site.output_dir(config), "index.html")
+    False -> files.join(files.join(site.output_dir(config), slug), "index.html")
+
+fn sitemap_urls(config: site.Config, pages: List(content.Page), acc: String) -> String:
+  case pages:
+    [] -> acc
+    [p, ..rest] ->
+      let slug = content.slug(p)
+      case string.equal(slug, "index"):
+        True -> sitemap_urls(config, rest, acc)
+        False -> sitemap_urls(config, rest, acc <> "  <url><loc>" <> site.url(config, slug <> "/") <> "</loc></url>\n")
+
+fn rss_items(config: site.Config, pages: List(content.Page), acc: String) -> String:
+  case pages:
+    [] -> acc
+    [p, ..rest] ->
+      let slug = content.slug(p)
+      case string.equal(slug, "index"):
+        True -> rss_items(config, rest, acc)
+        False ->
+          let item = "<item><title>" <> content.title(p) <> "</title><link>" <> site.url(config, slug <> "/") <> "</link><description>" <> content.title(p) <> "</description></item>\n"
+          rss_items(config, rest, acc <> item)
+
+
+fn comments_html(config: site.Config) -> String:
+  case site.comments(config):
+    "none" -> ""
+    "giscus" -> "<section class=\"comments\" data-provider=\"giscus\">Configure Giscus here.</section>"
+    "utterances" -> "<section class=\"comments\" data-provider=\"utterances\">Configure Utterances here.</section>"
+    _ -> ""
+
+fn contact_html(config: site.Config) -> String:
+  let contact = site.contact(config)
+  case string.starts_with(contact, "mailto:"):
+    True -> "<a href=\"" <> contact <> "\">Contact</a>"
+    False -> "<form class=\"contact\" method=\"post\" action=\"" <> contact <> "\"><input name=\"email\" placeholder=\"email\"><textarea name=\"message\" placeholder=\"message\"></textarea><button>Send</button></form>"

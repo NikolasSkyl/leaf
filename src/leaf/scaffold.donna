@@ -1,0 +1,312 @@
+// leaf/scaffold — Site and theme creation.
+
+import donna/files
+import donna/shell
+import leaf/ui
+
+pub fn init(name: String) -> String:
+  let root = case name:
+    "" -> "."
+    _ -> name
+  let _ = shell.run("mkdir -p " <> root)
+  let _ = make_site(root)
+  ui.ok("Created site " <> root)
+
+pub fn theme(name: String) -> String:
+  let theme_name = case name:
+    "" -> "default"
+    _ -> name
+  let root = files.join(files.join("themes", theme_name), "")
+  let _ = make_theme(".", theme_name)
+  ui.ok("Created theme " <> theme_name)
+
+fn make_site(root: String) -> Int:
+  let _ = mkdir(root, "content")
+  let _ = mkdir(root, "content/posts")
+  let _ = mkdir(root, "themes")
+  let _ = write(root, "config.toml", config())
+  let _ = write(root, "content/_index.md", home())
+  let _ = write(root, "content/about.md", about())
+  let _ = write(root, "content/posts/markdown-tour.md", tour())
+  make_theme(root, "default")
+
+fn make_theme(root: String, name: String) -> Int:
+  let base = files.join(files.join(root, "themes"), name)
+  let _ = shell.run("mkdir -p " <> files.join(base, "assets/css"))
+  let _ = shell.run("mkdir -p " <> files.join(base, "assets/js"))
+  let _ = shell.run("mkdir -p " <> files.join(base, "layouts/_partials/head"))
+  let _ = shell.run("mkdir -p " <> files.join(base, "static"))
+  let _ = write_raw(files.join(base, "theme.toml"), theme_toml(name))
+  let _ = write_raw(files.join(base, "assets/css/style.css"), css())
+  let _ = write_raw(files.join(base, "assets/js/app.js"), js())
+  let _ = write_raw(files.join(base, "static/robots.txt"), "User-agent: *\nAllow: /\n")
+  let _ = write_raw(files.join(base, "layouts/baseof.html"), baseof())
+  let _ = write_raw(files.join(base, "layouts/home.html"), home_layout())
+  let _ = write_raw(files.join(base, "layouts/page.html"), page_layout())
+  let _ = write_raw(files.join(base, "layouts/post.html"), page_layout())
+  let _ = write_raw(files.join(base, "layouts/doc.html"), page_layout())
+  let _ = write_raw(files.join(base, "layouts/book.html"), page_layout())
+  let _ = write_raw(files.join(base, "layouts/section.html"), page_layout())
+  let _ = write_raw(files.join(base, "layouts/taxonomy.html"), page_layout())
+  let _ = write_raw(files.join(base, "layouts/term.html"), page_layout())
+  let _ = write_raw(files.join(base, "layouts/_partials/head.html"), head())
+  let _ = write_raw(files.join(base, "layouts/_partials/head/css.html"), css_partial())
+  let _ = write_raw(files.join(base, "layouts/_partials/head/js.html"), js_partial())
+  let _ = write_raw(files.join(base, "layouts/_partials/header.html"), header())
+  let _ = write_raw(files.join(base, "layouts/_partials/menu.html"), menu())
+  let _ = write_raw(files.join(base, "layouts/_partials/footer.html"), footer())
+  write_raw(files.join(base, "layouts/_partials/post_card.html"), post_card())
+
+fn mkdir(root: String, path: String) -> Int:
+  shell.run("mkdir -p " <> files.join(root, path))
+
+fn write(root: String, path: String, content: String) -> Int:
+  write_raw(files.join(root, path), content)
+
+fn write_raw(path: String, content: String) -> Int:
+  case files.exists(path):
+    True -> 0
+    False -> files.write(path, content)
+
+pub fn archetype() -> String:
+  page_archetype()
+
+pub fn archetype_for(kind: String) -> String:
+  case kind:
+    "post" -> post_archetype()
+    "doc" -> doc_archetype()
+    "book" -> book_archetype()
+    _ -> page_archetype()
+
+fn post_archetype() -> String:
+  "---\n"
+  <> "title = \"{{title}}\"\n"
+  <> "slug = \"{{slug}}\"\n"
+  <> "date = \"{{date_now}}\"\n"
+  <> "layout = \"post\"\n"
+  <> "draft = true\n"
+  <> "tags = [\"notes\"]\n"
+  <> "weight = 100\n"
+  <> "---\n"
+  <> "\n"
+  <> "# {{title}}\n"
+  <> "\n"
+  <> "Write here.\n"
+
+fn page_archetype() -> String:
+  "---\n"
+  <> "title = \"{{title}}\"\n"
+  <> "slug = \"{{slug}}\"\n"
+  <> "date = \"{{date_now}}\"\n"
+  <> "layout = \"page\"\n"
+  <> "draft = true\n"
+  <> "tags = []\n"
+  <> "weight = 100\n"
+  <> "---\n"
+  <> "\n"
+  <> "# {{title}}\n"
+  <> "\n"
+  <> "Write here.\n"
+
+fn doc_archetype() -> String:
+  "---\n"
+  <> "title = \"{{title}}\"\n"
+  <> "slug = \"{{slug}}\"\n"
+  <> "date = \"{{date_now}}\"\n"
+  <> "layout = \"doc\"\n"
+  <> "draft = true\n"
+  <> "tags = [\"docs\"]\n"
+  <> "weight = 100\n"
+  <> "---\n"
+  <> "\n"
+  <> "# {{title}}\n"
+  <> "\n"
+  <> "Write the documentation here.\n"
+
+fn book_archetype() -> String:
+  "---\n"
+  <> "title = \"{{title}}\"\n"
+  <> "slug = \"{{slug}}\"\n"
+  <> "date = \"{{date_now}}\"\n"
+  <> "layout = \"book\"\n"
+  <> "draft = true\n"
+  <> "tags = [\"book\"]\n"
+  <> "weight = 100\n"
+  <> "---\n"
+  <> "\n"
+  <> "# {{title}}\n"
+  <> "\n"
+  <> "Write the book page here.\n"
+
+fn config() -> String:
+  "title = \"Leaf Site\"\n"
+  <> "base_url = \"http://localhost:1313\"\n"
+  <> "content_dir = \"content\"\n"
+  <> "output_dir = \"public\"\n"
+  <> "asset_dir = \"assets\"\n"
+  <> "static_dir = \"static\"\n"
+  <> "theme = \"default\"\n"
+  <> "paginate = 5\n"
+  <> "author = \"Donna Developer\"\n"
+  <> "social = \"https://example.com\"\n"
+  <> "comments = \"none\"\n"
+  <> "contact = \"mailto:hello@example.com\"\n"
+
+fn home() -> String:
+  "---\n"
+  <> "title = \"Home\"\n"
+  <> "slug = \"index\"\n"
+  <> "date = \"2026-05-04\"\n"
+  <> "layout = \"home\"\n"
+  <> "draft = false\n"
+  <> "weight = 1\n"
+  <> "---\n"
+  <> "\n"
+  <> "# Leaf Site\n"
+  <> "\n"
+  <> "A fast little Donna static site.\n"
+
+fn about() -> String:
+  "---\n"
+  <> "title = \"About\"\n"
+  <> "slug = \"about\"\n"
+  <> "date = \"2026-05-04\"\n"
+  <> "layout = \"page\"\n"
+  <> "draft = false\n"
+  <> "tags = [\"meta\"]\n"
+  <> "weight = 2\n"
+  <> "---\n"
+  <> "\n"
+  <> "# About\n"
+  <> "\n"
+  <> "Leaf renders Markdown through Mustache layouts and serves it with Mongoose.\n"
+
+fn docs_index() -> String:
+  "---\n"
+  <> "title = \"Docs\"\n"
+  <> "slug = \"docs\"\n"
+  <> "date = \"2026-05-04\"\n"
+  <> "layout = \"section\"\n"
+  <> "draft = false\n"
+  <> "weight = 3\n"
+  <> "---\n"
+  <> "\n"
+  <> "# Docs\n"
+  <> "\n"
+  <> "Guides, references, and examples live here.\n"
+
+fn doc() -> String:
+  "---\n"
+  <> "title = \"Getting Started\"\n"
+  <> "slug = \"docs/getting-started\"\n"
+  <> "date = \"2026-05-04\"\n"
+  <> "layout = \"doc\"\n"
+  <> "draft = false\n"
+  <> "tags = [\"docs\", \"start\"]\n"
+  <> "weight = 1\n"
+  <> "---\n"
+  <> "\n"
+  <> "# Getting Started\n"
+  <> "\n"
+  <> "Create content, choose a theme, and build your site.\n"
+
+fn books_index() -> String:
+  "---\n"
+  <> "title = \"Books\"\n"
+  <> "slug = \"books\"\n"
+  <> "date = \"2026-05-04\"\n"
+  <> "layout = \"section\"\n"
+  <> "draft = false\n"
+  <> "weight = 4\n"
+  <> "---\n"
+  <> "\n"
+  <> "# Books\n"
+  <> "\n"
+  <> "Long-form Donna material lives here.\n"
+
+fn book() -> String:
+  "---\n"
+  <> "title = \"The Donna Book\"\n"
+  <> "slug = \"books/the-donna-book\"\n"
+  <> "date = \"2026-05-04\"\n"
+  <> "layout = \"book\"\n"
+  <> "draft = false\n"
+  <> "tags = [\"book\", \"donna\"]\n"
+  <> "weight = 1\n"
+  <> "---\n"
+  <> "\n"
+  <> "# The Donna Book\n"
+  <> "\n"
+  <> "A place for chapters, guides, and deeper explanations.\n"
+
+fn tour() -> String:
+  "---\n"
+  <> "title = \"Markdown Tour\"\n"
+  <> "slug = \"posts/markdown-tour\"\n"
+  <> "date = \"2026-05-04\"\n"
+  <> "layout = \"page\"\n"
+  <> "draft = false\n"
+  <> "tags = [\"markdown\", \"demo\"]\n"
+  <> "weight = 10\n"
+  <> "---\n"
+  <> "\n"
+  <> "# Markdown Tour\n"
+  <> "\n"
+  <> "Leaf supports Markdown content and styled code blocks.\n"
+  <> "\n"
+  <> "```donna\n"
+  <> "pub fn hello() -> String:\n"
+  <> "  \"Hello Leaf\"\n"
+  <> "```\n"
+
+fn tags_index() -> String:
+  "---\n"
+  <> "title = \"Tags\"\n"
+  <> "slug = \"tags\"\n"
+  <> "date = \"2026-05-04\"\n"
+  <> "layout = \"taxonomy\"\n"
+  <> "draft = false\n"
+  <> "---\n"
+  <> "\n"
+  <> "# Tags\n"
+  <> "\n"
+  <> "Tag index support is built into page metadata and ready for richer grouping.\n"
+
+fn theme_toml(name: String) -> String:
+  "name = \"" <> name <> "\"\nversion = \"0.1.0\"\n"
+
+fn baseof() -> String:
+  "<!doctype html>\n<html lang=\"en\">\n{{> head}}\n<body>{{> header}}<main class=\"page\">{{{content}}}</main>{{> footer}}</body>\n</html>\n"
+
+fn home_layout() -> String:
+  "<!doctype html>\n<html lang=\"en\">\n{{> head}}\n<body>{{> header}}<main class=\"page\"><h1>{{title}}</h1>{{{content}}}{{{pagination}}}</main>{{> footer}}</body>\n</html>\n"
+
+fn page_layout() -> String:
+  "<!doctype html>\n<html lang=\"en\">\n{{> head}}\n<body>{{> header}}<main class=\"page\"><p class=\"meta\">{{date}} · {{read_time}} min read</p>{{{content}}}<div class=\"tags\">{{tags}}</div>{{{comments}}}{{{contact}}}</main>{{> footer}}</body>\n</html>\n"
+
+fn head() -> String:
+  "<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{{title}} | {{site_title}}</title>\n{{> head_css}}\n{{> head_js}}\n</head>\n"
+
+fn css_partial() -> String:
+  "<link rel=\"stylesheet\" href=\"{{asset_base}}/css/style.css\">\n"
+
+fn js_partial() -> String:
+  "<script defer src=\"{{asset_base}}/js/app.js\"></script>\n"
+
+fn header() -> String:
+  "<header class=\"site-header\"><a class=\"brand\" href=\"/\">{{site_title}}</a>{{> menu}}</header>\n"
+
+fn menu() -> String:
+  "<nav><a href=\"/\">Home</a><a href=\"/about/\">About</a><a href=\"{{social}}\">Social</a></nav>\n"
+
+fn footer() -> String:
+  "<footer class=\"site-footer\">&copy; {{year_now}} {{site_title}}. Built with Leaf.</footer>\n"
+
+fn post_card() -> String:
+  "<article class=\"post-card\"><p class=\"eyebrow\">{{type}}</p><h2><a href=\"/{{url}}\">{{title}}</a></h2><p>{{date}} · {{read_time}} min read</p></article>\n"
+
+fn css() -> String:
+  ":root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;line-height:1.55}body{margin:0;color:CanvasText;background:Canvas}a{color:LinkText}.site-header,.site-footer{max-width:980px;margin:auto;padding:1rem 1.25rem}.site-header{display:flex;justify-content:space-between;border-bottom:1px solid color-mix(in srgb,CanvasText 16%,Canvas)}nav{display:flex;gap:1rem}.brand{font-weight:800;text-decoration:none}.page{max-width:760px;margin:auto;padding:2rem 1.25rem 3rem}h1,h2,h3{line-height:1.15}.meta,.tags,.site-footer{color:color-mix(in srgb,CanvasText 62%,Canvas)}pre{overflow-x:auto;padding:1rem;border-radius:6px;background:color-mix(in srgb,CanvasText 8%,Canvas)}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.post-card{padding:1rem 0;border-bottom:1px solid color-mix(in srgb,CanvasText 12%,Canvas)}.pagination{display:flex;gap:1rem;margin-top:2rem}.contact{display:grid;gap:.75rem;margin-top:2rem}.contact input,.contact textarea{padding:.7rem;border:1px solid color-mix(in srgb,CanvasText 22%,Canvas);border-radius:4px;background:Canvas;color:CanvasText}.contact button{width:max-content;padding:.7rem 1rem}\n"
+
+fn js() -> String:
+  "console.log('Leaf theme loaded');\n"
