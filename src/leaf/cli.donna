@@ -1,5 +1,3 @@
-// leaf/cli — Command line interface.
-
 import argparse
 import donna/string
 import leaf/commands
@@ -16,7 +14,11 @@ pub fn run() -> Nil:
         True -> echo ui.version
         False -> dispatch(args, pos, cmd)
 
-fn dispatch(args: List(#(String, String)), pos: List(String), cmd: String) -> Nil:
+fn dispatch(
+  args: List(#(String, String)),
+  pos: List(String),
+  cmd: String
+) -> Nil:
   case cmd:
     "init" -> echo commands.init(second(pos, "site"))
     "theme" -> echo commands.theme(second(pos, "default"))
@@ -45,14 +47,14 @@ fn port(args: List(#(String, String))) -> Int:
 fn first(xs: List(String), default: String) -> String:
   case xs:
     [] -> default
-    [x, ..] -> x
+    [x, .._] -> x
 
 fn second(xs: List(String), default: String) -> String:
   case xs:
-    [_, x, ..] -> x
+    [_, x, .._] -> x
     _ -> default
 
 fn third(xs: List(String), default: String) -> String:
   case xs:
-    [_, _, x, ..] -> x
+    [_, _, x, .._] -> x
     _ -> default

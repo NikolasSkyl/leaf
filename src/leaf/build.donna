@@ -1,5 +1,3 @@
-// leaf/build — Build orchestration.
-
 import donna/files
 import donna/list
 import donna/shell
@@ -21,7 +19,11 @@ pub fn run() -> String:
   let _ = render.render_feed_alias(config)
   ui.ok("Built " <> int_to_string(rendered) <> " pages into " <> out)
 
-fn render_pages(config: site.Config, pages: List(content.Page), count: Int) -> Int:
+fn render_pages(
+  config: site.Config,
+  pages: List(content.Page),
+  count: Int
+) -> Int:
   case pages:
     [] -> count
     [page, ..rest] ->

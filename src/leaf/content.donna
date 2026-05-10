@@ -1,5 +1,3 @@
-// leaf/content — Markdown content and front matter.
-
 import donna/files
 import donna/list
 import donna/string
@@ -7,18 +5,7 @@ import parsetoml/parsetoml
 import leaf/site
 
 pub type Page:
-  Page(
-    title: String,
-    slug: String,
-    date: String,
-    layout: String,
-    draft: Bool,
-    tags: String,
-    weight: Int,
-    source: String,
-    body: String,
-    read_minutes: Int
-  )
+  Page(title: String, slug: String, date: String, layout: String, draft: Bool, tags: String, weight: Int, source: String, body: String, read_minutes: Int)
 
 type Front:
   Front(meta: parsetoml.TomlValue, body: String)
@@ -29,27 +16,60 @@ pub fn collect(config: site.Config) -> List(Page):
 pub fn collect_all(config: site.Config) -> List(Page):
   collect_dir(site.content_dir(config), site.content_dir(config), [], True)
 
-fn collect_dir(root: String, dir: String, acc: List(Page), include_drafts: Bool) -> List(Page):
+fn collect_dir(
+  root: String,
+  dir: String,
+  acc: List(Page),
+  include_drafts: Bool
+) -> List(Page):
   collect_entries(root, dir, files.list_dir(dir), acc, include_drafts)
 
-fn collect_entries(root: String, dir: String, entries: List(String), acc: List(Page), include_drafts: Bool) -> List(Page):
+fn collect_entries(
+  root: String,
+  dir: String,
+  entries: List(String),
+  acc: List(Page),
+  include_drafts: Bool
+) -> List(Page):
   case entries:
     [] -> acc
     [name, ..rest] ->
       let path = files.join(dir, name)
       case files.is_dir(path):
-        True -> collect_entries(root, dir, rest, collect_dir(root, path, acc, include_drafts), include_drafts)
+        True ->
+          collect_entries(
+            root,
+            dir,
+            rest,
+            collect_dir(root, path, acc, include_drafts),
+            include_drafts
+          )
         False ->
           case string.ends_with(name, ".md"):
             False -> collect_entries(root, dir, rest, acc, include_drafts)
             True ->
               let page = parse(root, path)
               case include_drafts:
-                True -> collect_entries(root, dir, rest, [page, ..acc], include_drafts)
+                True ->
+                  collect_entries(
+                    root,
+                    dir,
+                    rest,
+                    [page, ..acc],
+                    include_drafts
+                  )
                 False ->
                   case draft(page):
-                    True -> collect_entries(root, dir, rest, acc, include_drafts)
-                    False -> collect_entries(root, dir, rest, [page, ..acc], include_drafts)
+                    True ->
+                      collect_entries(root, dir, rest, acc, include_drafts)
+                    False ->
+                      collect_entries(
+                        root,
+                        dir,
+                        rest,
+                        [page, ..acc],
+                        include_drafts
+                      )
 
 fn parse(root: String, path: String) -> Page:
   let front = split_front_matter(files.read(path))
@@ -57,35 +77,35 @@ fn parse(root: String, path: String) -> Page:
   let fallback = fallback_slug(root, path)
   let body = body_of(front)
   Page(
-    title: toml_string(meta, "title", title_from_slug(fallback)),
-    slug: toml_string(meta, "slug", fallback),
-    date: toml_string(meta, "date", ""),
-    layout: toml_string(meta, "layout", default_layout(fallback)),
-    draft: toml_bool(meta, "draft", False),
-    tags: tags_string(meta),
-    weight: toml_int(meta, "weight", 100),
-    source: path,
-    body: body,
-    read_minutes: read_minutes(body)
+    toml_string(meta, "title", title_from_slug(fallback)),
+    toml_string(meta, "slug", fallback),
+    toml_string(meta, "date", ""),
+    toml_string(meta, "layout", default_layout(fallback)),
+    toml_bool(meta, "draft", False),
+    tags_string(meta),
+    toml_int(meta, "weight", 100),
+    path,
+    body,
+    read_minutes(body)
   )
 
 fn split_front_matter(src: String) -> Front:
   let lines = string.split(src, "\n")
   case lines:
     ["---", ..rest] -> read_front(rest, [])
-    _ -> Front(meta: parsetoml.TomlTable([]), body: src)
+    _ -> Front(parsetoml.TomlTable([]), src)
 
 fn read_front(lines: List(String), meta_acc: List(String)) -> Front:
   case lines:
-    [] -> Front(meta: parsetoml.TomlTable([]), body: "")
+    [] -> Front(parsetoml.TomlTable([]), "")
     [line, ..rest] ->
       case string.equal(line, "---"):
         True ->
           let meta_src = string.join(list.reverse(meta_acc), "\n")
           let body = string.join(rest, "\n")
           case parsetoml.parse(meta_src):
-            parsetoml.Ok(t) -> Front(meta: t, body: body)
-            parsetoml.Err(_) -> Front(meta: parsetoml.TomlTable([]), body: body)
+            parsetoml.Ok(t) -> Front(t, body)
+            parsetoml.Err(_) -> Front(parsetoml.TomlTable([]), body)
         False -> read_front(rest, [line, ..meta_acc])
 
 fn fallback_slug(root: String, path: String) -> String:
@@ -93,7 +113,11 @@ fn fallback_slug(root: String, path: String) -> String:
   let prefix = root <> "/"
   case string.starts_with(no_ext, prefix):
     True ->
-      let rel = string.slice(no_ext, string.length(prefix), string.length(no_ext) - string.length(prefix))
+      let rel = string.slice(
+        no_ext,
+        string.length(prefix),
+        string.length(no_ext) - string.length(prefix)
+      )
       normalize_index(rel)
     False -> normalize_index(files.drop_extension(files.basename(path)))
 
@@ -149,13 +173,17 @@ fn count_words(words: List(String), acc: Int) -> Int:
 
 fn meta_of(f: Front) -> parsetoml.TomlValue:
   case f:
-    Front(meta: m, body: _) -> m
+    Front(m, _) -> m
 
 fn body_of(f: Front) -> String:
   case f:
-    Front(meta: _, body: b) -> b
+    Front(_, b) -> b
 
-fn toml_string(t: parsetoml.TomlValue, key: String, default_value: String) -> String:
+fn toml_string(
+  t: parsetoml.TomlValue,
+  key: String,
+  default_value: String
+) -> String:
   case parsetoml.get_string(t, key):
     parsetoml.Ok(s) -> s
     parsetoml.Err(_) -> default_value
@@ -172,43 +200,43 @@ fn toml_int(t: parsetoml.TomlValue, key: String, default_value: Int) -> Int:
 
 pub fn title(p: Page) -> String:
   case p:
-    Page(title: x, slug: _, date: _, layout: _, draft: _, tags: _, weight: _, source: _, body: _, read_minutes: _) -> x
+    Page(x, _, _, _, _, _, _, _, _, _) -> x
 
 pub fn slug(p: Page) -> String:
   case p:
-    Page(title: _, slug: x, date: _, layout: _, draft: _, tags: _, weight: _, source: _, body: _, read_minutes: _) -> x
+    Page(_, x, _, _, _, _, _, _, _, _) -> x
 
 pub fn date(p: Page) -> String:
   case p:
-    Page(title: _, slug: _, date: x, layout: _, draft: _, tags: _, weight: _, source: _, body: _, read_minutes: _) -> x
+    Page(_, _, x, _, _, _, _, _, _, _) -> x
 
 pub fn layout(p: Page) -> String:
   case p:
-    Page(title: _, slug: _, date: _, layout: x, draft: _, tags: _, weight: _, source: _, body: _, read_minutes: _) -> x
+    Page(_, _, _, x, _, _, _, _, _, _) -> x
 
 pub fn draft(p: Page) -> Bool:
   case p:
-    Page(title: _, slug: _, date: _, layout: _, draft: x, tags: _, weight: _, source: _, body: _, read_minutes: _) -> x
+    Page(_, _, _, _, x, _, _, _, _, _) -> x
 
 pub fn tags(p: Page) -> String:
   case p:
-    Page(title: _, slug: _, date: _, layout: _, draft: _, tags: x, weight: _, source: _, body: _, read_minutes: _) -> x
+    Page(_, _, _, _, _, x, _, _, _, _) -> x
 
 pub fn weight(p: Page) -> Int:
   case p:
-    Page(title: _, slug: _, date: _, layout: _, draft: _, tags: _, weight: x, source: _, body: _, read_minutes: _) -> x
+    Page(_, _, _, _, _, _, x, _, _, _) -> x
 
 pub fn source(p: Page) -> String:
   case p:
-    Page(title: _, slug: _, date: _, layout: _, draft: _, tags: _, weight: _, source: x, body: _, read_minutes: _) -> x
+    Page(_, _, _, _, _, _, _, x, _, _) -> x
 
 pub fn body(p: Page) -> String:
   case p:
-    Page(title: _, slug: _, date: _, layout: _, draft: _, tags: _, weight: _, source: _, body: x, read_minutes: _) -> x
+    Page(_, _, _, _, _, _, _, _, x, _) -> x
 
 pub fn read_time(p: Page) -> Int:
   case p:
-    Page(title: _, slug: _, date: _, layout: _, draft: _, tags: _, weight: _, source: _, body: _, read_minutes: x) -> x
+    Page(_, _, _, _, _, _, _, _, _, x) -> x
 
 pub fn kind(p: Page) -> String:
   let s = slug(p)

@@ -1,5 +1,3 @@
-// leaf/commands — User-facing commands.
-
 import donna/files
 import donna/list
 import donna/shell
@@ -26,7 +24,15 @@ pub fn new(kind: String, slug: String) -> String:
     False ->
       let _ = shell.run("mkdir -p " <> files.dirname(path))
       let raw = scaffold.archetype_for(normalized)
-      let rendered = string.replace(string.replace(string.replace(raw, "{{title}}", title_from_slug(real_slug)), "{{slug}}", content_slug(normalized, real_slug)), "{{date_now}}", shell.output("date", ["+%Y-%m-%d"]))
+      let rendered = string.replace(
+        string.replace(
+          string.replace(raw, "{{title}}", title_from_slug(real_slug)),
+          "{{slug}}",
+          content_slug(normalized, real_slug)
+        ),
+        "{{date_now}}",
+        shell.output("date", ["+%Y-%m-%d"])
+      )
       let _ = files.write(path, rendered)
       ui.ok("Created " <> path)
 
@@ -44,13 +50,17 @@ pub fn serve(port: Int, should_watch: Bool) -> String:
   echo built
   case should_watch:
     True ->
-      let _ = shell.run("leaf serve-only --port " <> int_to_string(port) <> " >/dev/null 2>&1 &")
+      let _ = shell.run(
+        "leaf serve-only --port " <> int_to_string(port) <> " >/dev/null 2>&1 &"
+      )
       watch()
     False -> serve_only(port)
 
 pub fn serve_only(port: Int) -> String:
   let config = site.read()
-  echo ui.ok("Serving " <> site.output_dir(config) <> " at http://localhost:" <> int_to_string(port))
+  echo ui.ok(
+    "Serving " <> site.output_dir(config) <> " at http://localhost:" <> int_to_string(port)
+  )
   let _ = mongoose.serve(site.output_dir(config), port)
   ui.ok("Server stopped")
 
@@ -68,22 +78,44 @@ fn title_from_slug(slug: String) -> String:
 
 pub fn doctor() -> String:
   let config = site.read()
-  checks(config, [
-    #("config.toml", files.exists("config.toml")),
-    #("content", files.is_dir(site.content_dir(config))),
-    #("theme", files.is_dir(site.theme_dir(config))),
-    #("layouts", files.is_dir(site.layouts_dir(config))),
-    #("page layout", files.exists(files.join(site.layouts_dir(config), "page.html"))),
-    #("home layout", files.exists(files.join(site.layouts_dir(config), "home.html"))),
-    #("post card partial", files.exists(files.join(files.join(site.layouts_dir(config), "_partials"), "post_card.html"))),
-    #("theme assets", files.is_dir(site.theme_assets_dir(config)))
-  ], "")
+  checks(
+    config,
+    [
+      #("config.toml", files.exists("config.toml")),
+      #("content", files.is_dir(site.content_dir(config))),
+      #("theme", files.is_dir(site.theme_dir(config))),
+      #("layouts", files.is_dir(site.layouts_dir(config))),
+      #(
+        "page layout",
+        files.exists(files.join(site.layouts_dir(config), "page.html"))
+      ),
+      #(
+        "home layout",
+        files.exists(files.join(site.layouts_dir(config), "home.html"))
+      ),
+      #(
+        "post card partial",
+        files.exists(
+          files.join(
+            files.join(site.layouts_dir(config), "_partials"),
+            "post_card.html"
+          )
+        )
+      ),
+      #("theme assets", files.is_dir(site.theme_assets_dir(config)))
+    ],
+    ""
+  )
 
 pub fn list_content() -> String:
   let config = site.read()
   list_pages(list.reverse(content.collect_all(config)), "")
 
-fn checks(config: site.Config, items: List(#(String, Bool)), acc: String) -> String:
+fn checks(
+  config: site.Config,
+  items: List(#(String, Bool)),
+  acc: String
+) -> String:
   case items:
     [] -> acc <> ui.ok("doctor finished")
     [#(label, passed), ..rest] ->

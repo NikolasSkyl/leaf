@@ -1,9 +1,7 @@
-// leaf/ui — CLI color and text helpers.
-
 pub const version = "0.1.0"
 
 fn esc() -> String:
-  "\u001b["
+  "\u{001b}["
 
 pub fn green(s: String) -> String:
   esc() <> "32m" <> s <> esc() <> "0m"
@@ -33,26 +31,10 @@ pub fn err(s: String) -> String:
   red("error") <> " " <> s
 
 pub fn help() -> String:
-  green(bold("Leaf")) <> dim(" - a tiny static site generator") <> "\n"
-  <> "\n"
-  <> cyan("Usage: ") <> green("leaf ") <> arg("<COMMAND>") <> "\n"
-  <> "\n"
-  <> cyan("Commands") <> "\n"
-  <> help_line("init " <> arg("<name>"), "create a new site") <> "\n"
-  <> help_line("theme " <> arg("<name>"), "create themes/<name>/ with starter layouts") <> "\n"
-  <> help_line("new post " <> arg("<slug>"), "create content/posts/<slug>.md") <> "\n"
-  <> help_line("new page " <> arg("<slug>"), "create content/<slug>.md") <> "\n"
-  <> help_line("new doc " <> arg("<slug>"), "create content/docs/<slug>.md") <> "\n"
-  <> help_line("new book " <> arg("<slug>"), "create content/books/<slug>.md") <> "\n"
-  <> help_line("build", "render content into public/ or configured output_dir") <> "\n"
-  <> help_line("serve", "build and serve at http://localhost:1313") <> "\n"
-  <> help_line("serve --port " <> arg("N"), "build and serve at a custom port") <> "\n"
-  <> help_line("serve --watch", "serve and rebuild every 2 seconds") <> "\n"
-  <> help_line("doctor", "check config, theme, layouts, and assets") <> "\n"
-  <> help_line("list", "list content with draft/date/weight/type") <> "\n"
-  <> help_line("clean", "remove generated output") <> "\n"
-  <> help_line("help | -h | --help", "show this message") <> "\n"
-  <> help_line("-v | --version", "show version")
+  green(bold("Leaf")) <> dim(" - a tiny static site generator") <> "\n" <> "\n" <> cyan("Usage: ") <> green("leaf ") <> arg("<COMMAND>") <> "\n" <> "\n" <> cyan("Commands") <> "\n" <> help_line("init " <> arg("<name>"), "create a new site") <> "\n" <> help_line(
+    "theme " <> arg("<name>"),
+    "create themes/<name>/ with starter layouts"
+  ) <> "\n" <> help_line("new post " <> arg("<slug>"), "create content/posts/<slug>.md") <> "\n" <> help_line("new page " <> arg("<slug>"), "create content/<slug>.md") <> "\n" <> help_line("new doc " <> arg("<slug>"), "create content/docs/<slug>.md") <> "\n" <> help_line("new book " <> arg("<slug>"), "create content/books/<slug>.md") <> "\n" <> help_line("build", "render content into public/ or configured output_dir") <> "\n" <> help_line("serve", "build and serve at http://localhost:1313") <> "\n" <> help_line("serve --port " <> arg("N"), "build and serve at a custom port") <> "\n" <> help_line("serve --watch", "serve and rebuild every 2 seconds") <> "\n" <> help_line("doctor", "check config, theme, layouts, and assets") <> "\n" <> help_line("list", "list content with draft/date/weight/type") <> "\n" <> help_line("clean", "remove generated output") <> "\n" <> help_line("help | -h | --help", "show this message") <> "\n" <> help_line("-v | --version", "show version")
 
 fn help_line(command: String, description: String) -> String:
   "  " <> green(command) <> dim("  " <> description)
