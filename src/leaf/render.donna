@@ -4,16 +4,27 @@ import donna/shell
 import donna/string
 import markdown
 import mustache
+import parsetoml/parsetoml
 import leaf/content
 import leaf/site
 
-pub fn render_page(config: site.Config, page: content.Page) -> Int:
+type MenuItem:
+  MenuItem(label: String, href: String, cta: Bool, weight: Int)
+
+type SectionItem:
+  SectionItem(name: String, title: String, href: String, weight: Int)
+
+pub fn render_page(
+  config: site.Config,
+  page: content.Page,
+  pages: List(content.Page)
+) -> Int:
   let layout = read_layout(config, content.layout(page))
   let markdown_source = markdown_body(content.source(page))
-  let html = markdown.to_html(markdown_source)
+  let html = decorate_code(markdown.to_html(markdown_source))
   let output = mustache.render_with_partials(
     layout,
-    values(config, page, html),
+    values(config, page, pages, html),
     partials(config)
   )
   let path = output_path(config, content.slug(page))
@@ -22,8 +33,7 @@ pub fn render_page(config: site.Config, page: content.Page) -> Int:
 
 pub fn render_home(config: site.Config, pages: List(content.Page)) -> Int:
   let layout = read_layout(config, "home")
-  let first_page = list.take(pages, site.posts_per_page(config))
-  let cards = page_cards(config, first_page, "")
+  let cards = page_cards(config, pages, site.posts_per_page(config), "")
   let output = mustache.render_with_partials(
     layout,
     common(
@@ -75,7 +85,6 @@ fn partials(config: site.Config) -> List(#(String, String)):
     #("head_css", files.read(files.join(files.join(dir, "head"), "css.html"))),
     #("head_js", files.read(files.join(files.join(dir, "head"), "js.html"))),
     #("header", files.read(files.join(dir, "header.html"))),
-    #("menu", files.read(files.join(dir, "menu.html"))),
     #("footer", files.read(files.join(dir, "footer.html"))),
     #("post_card", files.read(files.join(dir, "post_card.html")))
   ]
@@ -83,6 +92,7 @@ fn partials(config: site.Config) -> List(#(String, String)):
 fn values(
   config: site.Config,
   page: content.Page,
+  pages: List(content.Page),
   html: String
 ) -> List(#(String, String)):
   let slug = content.slug(page)
@@ -98,9 +108,19 @@ fn values(
       #("type", content.kind(page)),
       #("date", content.date(page)),
       #("tags", content.tags(page)),
+      #("lead", content.lead(page)),
+      #("category", content.category(page)),
+      #("article_tag", first_tag(content.tags(page))),
+      #("article_tag_class", tag_class(first_tag(content.tags(page)))),
       #("read_time", int_to_string(content.read_time(page))),
+      #("read_time_label", content.read_time_label(page)),
       #("source", content.source(page)),
       #("content", html),
+      #("doc_sidebar", doc_sidebar(page, pages)),
+      #("doc_nav", doc_nav(page, sorted_docs(pages, []))),
+      #("news_articles", news_articles(config, sorted_posts(pages, []), "")),
+      #("news_tags", news_tags(sorted_posts(pages, []))),
+      #("recent_posts", recent_posts(sorted_posts(pages, []), 0, "")),
       #("comments", comments_html(config)),
       #("contact", contact_html(config))
     ]
@@ -117,6 +137,12 @@ fn common(
       #("asset_base", site.asset_base(config)),
       #("author", site.author(config)),
       #("social", site.social(config)),
+      #("donna_version", site.extra_string("version", "")),
+      #("share_article", bool_text(site.extra_bool("share_article", True))),
+      #("menu", menu_html(config)),
+      #("mobile_menu", mobile_menu_html(config)),
+      #("social_cards", social_cards(config)),
+      #("share_buttons", share_buttons(config)),
       #("year_now", shell.output("date", ["+%Y"])),
       #("date_now", shell.output("date", ["+%Y-%m-%d"])),
       #("time_now", shell.output("date", ["+%H:%M:%S"]))
@@ -127,21 +153,208 @@ fn common(
 fn page_cards(
   config: site.Config,
   pages: List(content.Page),
+  remaining: Int,
+  acc: String
+) -> String:
+  case remaining <= 0:
+    True -> acc
+    False ->
+      case pages:
+        [] -> acc
+        [p, ..rest] ->
+          case string.equal(content.slug(p), "index"):
+            True -> page_cards(config, rest, remaining, acc)
+            False ->
+              let title = content.title(p)
+              let slug = content.slug(p)
+              let kind = content.kind(p)
+              let date = content.date(p)
+              let read_time = int_to_string(content.read_time(p))
+              let card = "<article class=\"post-card\"><p class=\"eyebrow\">" <> kind <> "</p><h2><a href=\"/" <> slug <> "/\">" <> title <> "</a></h2><p>" <> date <> " · " <> read_time <> " min read</p></article>"
+              page_cards(config, rest, remaining - 1, acc <> card)
+
+fn sorted_posts(
+  pages: List(content.Page),
+  acc: List(content.Page)
+) -> List(content.Page):
+  case pages:
+    [] -> acc
+    [p, ..rest] ->
+      case string.equal(content.kind(p), "post"):
+        True -> sorted_posts(rest, insert_page(p, acc))
+        False -> sorted_posts(rest, acc)
+
+fn sorted_docs(
+  pages: List(content.Page),
+  acc: List(content.Page)
+) -> List(content.Page):
+  case pages:
+    [] -> acc
+    [p, ..rest] ->
+      case string.equal(content.kind(p), "doc"):
+        True -> sorted_docs(rest, insert_page(p, acc))
+        False -> sorted_docs(rest, acc)
+
+fn insert_page(
+  page: content.Page,
+  pages: List(content.Page)
+) -> List(content.Page):
+  case pages:
+    [] -> [page]
+    [head, ..rest] ->
+      case content.weight(page) <= content.weight(head):
+        True -> [page, head, ..rest]
+        False -> [head, ..insert_page(page, rest)]
+
+fn doc_sidebar(page: content.Page, pages: List(content.Page)) -> String:
+  let docs = sorted_docs(pages, [])
+  render_doc_sidebar(content.slug(page), docs, "", "")
+
+fn render_doc_sidebar(
+  active_slug: String,
+  pages: List(content.Page),
+  current_category: String,
+  acc: String
+) -> String:
+  case pages:
+    [] ->
+      case string.is_empty(acc):
+        True -> ""
+        False -> acc <> "</ul></div>"
+    [p, ..rest] ->
+      let category = doc_category(p)
+      let opened = case string.equal(category, current_category):
+        True -> acc
+        False ->
+          let closed = case string.is_empty(acc):
+            True -> ""
+            False -> acc <> "</ul></div>"
+          closed <> "<div class=\"sidebar-section\"><div class=\"sidebar-heading\">" <> category <> "</div><ul class=\"sidebar-nav\">"
+      let cls = case string.equal(active_slug, content.slug(p)):
+        True -> " class=\"active\""
+        False -> ""
+      let label = case string.equal(content.slug(p), "docs"):
+        True -> "Introduction"
+        False -> content.title(p)
+      let item = "<li><a href=\"/" <> content.slug(p) <> "/\"" <> cls <> ">" <> label <> "</a></li>"
+      render_doc_sidebar(active_slug, rest, category, opened <> item)
+
+fn doc_category(page: content.Page) -> String:
+  case string.is_empty(content.category(page)):
+    True -> "Guide"
+    False -> content.category(page)
+
+fn doc_nav(page: content.Page, pages: List(content.Page)) -> String:
+  case string.equal(content.kind(page), "doc"):
+    True ->
+      find_doc_nav(
+        content.slug(page),
+        pages,
+        content.Page("", "", "", "", False, "", 0, "", "", "", "", 0, "")
+      )
+    False -> ""
+
+fn find_doc_nav(
+  slug: String,
+  pages: List(content.Page),
+  previous: content.Page
+) -> String:
+  case pages:
+    [] -> ""
+    [p, ..rest] ->
+      case string.equal(slug, content.slug(p)):
+        True -> render_doc_nav(previous, first_page(rest))
+        False -> find_doc_nav(slug, rest, p)
+
+fn first_page(pages: List(content.Page)) -> content.Page:
+  case pages:
+    [] -> content.Page("", "", "", "", False, "", 0, "", "", "", "", 0, "")
+    [p, .._] -> p
+
+fn render_doc_nav(previous: content.Page, next: content.Page) -> String:
+  let previous_html = case string.is_empty(content.slug(previous)):
+    True -> "<span></span>"
+    False ->
+      "<a class=\"page-nav-btn\" href=\"/" <> content.slug(previous) <> "/\"><span>← Previous</span><strong>" <> content.title(previous) <> "</strong></a>"
+  let next_html = case string.is_empty(content.slug(next)):
+    True -> "<span></span>"
+    False ->
+      "<a class=\"page-nav-btn next\" href=\"/" <> content.slug(next) <> "/\"><span>Next →</span><strong>" <> content.title(next) <> "</strong></a>"
+  "<div class=\"page-nav\">" <> previous_html <> next_html <> "</div>"
+
+fn news_articles(
+  config: site.Config,
+  pages: List(content.Page),
   acc: String
 ) -> String:
   case pages:
     [] -> acc
     [p, ..rest] ->
-      case string.equal(content.slug(p), "index"):
-        True -> page_cards(config, rest, acc)
+      let tag = first_tag(content.tags(p))
+      let read = case string.is_empty(content.read_time_label(p)):
+        True -> ""
         False ->
-          let title = content.title(p)
-          let slug = content.slug(p)
-          let kind = content.kind(p)
-          let date = content.date(p)
-          let read_time = int_to_string(content.read_time(p))
-          let card = "<article class=\"post-card\"><p class=\"eyebrow\">" <> kind <> "</p><h2><a href=\"/" <> slug <> "/\">" <> title <> "</a></h2><p>" <> date <> " · " <> read_time <> " min read</p></article>"
-          page_cards(config, rest, acc <> card)
+          "<span class=\"read-time\">" <> content.read_time_label(p) <> "</span>"
+      let article = "<article class=\"article\" data-tags=\"" <> content.tags(p) <> "\"><div class=\"article-meta\"><span class=\"article-tag " <> tag_class(tag) <> "\">" <> tag_label(tag) <> "</span><span class=\"article-date\">" <> content.date(p) <> "</span>" <> read <> "</div><h2><a href=\"/" <> content.slug(p) <> "/\">" <> content.title(p) <> "</a></h2><p class=\"article-excerpt\">" <> content.lead(p) <> "</p><div class=\"article-author\"><div class=\"author-avatar\">DL</div><div class=\"author-name\"><strong>" <> site.author(config) <> "</strong></div></div><a href=\"/" <> content.slug(p) <> "/\" class=\"read-more\">Read more →</a></article>"
+      news_articles(config, rest, acc <> article)
+
+fn news_tags(pages: List(content.Page)) -> String:
+  "<button type=\"button\" class=\"tag-pill active\" data-news-tag=\"all\">All</button>" <> render_tag_buttons(collect_tags(pages, []), "")
+
+fn collect_tags(pages: List(content.Page), acc: List(String)) -> List(String):
+  case pages:
+    [] -> list.reverse(acc)
+    [p, ..rest] ->
+      collect_tags(
+        rest,
+        collect_tag_parts(string.split(content.tags(p), ","), acc)
+      )
+
+fn collect_tag_parts(tags: List(String), acc: List(String)) -> List(String):
+  case tags:
+    [] -> acc
+    [tag, ..rest] ->
+      let clean = string.trim(tag)
+      case string.is_empty(clean) || list.contains_str(acc, clean):
+        True -> collect_tag_parts(rest, acc)
+        False -> collect_tag_parts(rest, [clean, ..acc])
+
+fn render_tag_buttons(tags: List(String), acc: String) -> String:
+  case tags:
+    [] -> acc
+    [tag, ..rest] ->
+      render_tag_buttons(
+        rest,
+        acc <> "<button type=\"button\" class=\"tag-pill\" data-news-tag=\"" <> tag_class(tag) <> "\">" <> tag_label(tag) <> "</button>"
+      )
+
+fn recent_posts(pages: List(content.Page), count: Int, acc: String) -> String:
+  case pages:
+    [] -> acc
+    [p, ..rest] ->
+      case count >= 5:
+        True -> acc
+        False ->
+          recent_posts(
+            rest,
+            count + 1,
+            acc <> "<li class=\"recent-item\"><a href=\"/" <> content.slug(p) <> "/\">" <> content.title(p) <> "</a><span>" <> content.date(p) <> "</span></li>"
+          )
+
+fn first_tag(tags: String) -> String:
+  case string.split(tags, ","):
+    [] -> ""
+    [tag, .._] -> string.trim(tag)
+
+fn tag_class(tag: String) -> String:
+  case string.is_empty(tag):
+    True -> "general"
+    False -> string.to_slug(string.lowercase(tag))
+
+fn tag_label(tag: String) -> String:
+  case string.is_empty(tag):
+    True -> "General"
+    False -> tag
 
 fn markdown_body(path: String) -> String:
   strip_front_matter(string.split(files.read(path), "\n"))
@@ -158,6 +371,280 @@ fn read_body_after_front(lines: List(String)) -> String:
       case string.equal(line, "---"):
         True -> string.join(rest, "\n")
         False -> read_body_after_front(rest)
+
+fn decorate_code(html: String) -> String:
+  string.replace(
+    string.replace(
+      html,
+      "<pre><code",
+      "<div class=\"code-block\"><div class=\"code-block-bar\"><div class=\"dot dot-r\"></div><div class=\"dot dot-y\"></div><div class=\"dot dot-g\"></div><span class=\"code-block-label\">code</span></div><pre><code"
+    ),
+    "</code></pre>",
+    "</code></pre></div>"
+  )
+
+fn bool_text(value: Bool) -> String:
+  case value:
+    True -> "true"
+    False -> "false"
+
+fn menu_html(config: site.Config) -> String:
+  "<ul class=\"nav-links\">" <> render_menu(menu_items(config), False, "") <> "<li><button type=\"button\" class=\"theme-toggle\" data-theme-toggle aria-label=\"Switch to light theme\"><span class=\"theme-toggle-icon\" aria-hidden=\"true\"></span></button></li></ul>"
+
+fn mobile_menu_html(config: site.Config) -> String:
+  render_menu(menu_items(config), True, "") <> "<button type=\"button\" class=\"theme-toggle theme-toggle-mobile\" data-theme-toggle aria-label=\"Switch to light theme\"><span class=\"theme-toggle-icon\" aria-hidden=\"true\"></span><span class=\"theme-toggle-label\">Theme</span></button>"
+
+fn menu_items(config: site.Config) -> List(MenuItem):
+  let items = section_items("menu", default_menu(config))
+  menu_from_sections(items, [])
+
+fn default_menu(config: site.Config) -> List(SectionItem):
+  [
+    SectionItem(
+      "Language Tour",
+      "Language Tour",
+      "/docs/",
+      site.extra_int("menu_docs_weight", 10)
+    ),
+    SectionItem(
+      "Code",
+      "Code",
+      "/#code",
+      site.extra_int("menu_code_weight", 20)
+    ),
+    SectionItem(
+      "Books",
+      "Books",
+      "/#books",
+      site.extra_int("menu_books_weight", 30)
+    ),
+    SectionItem(
+      "News",
+      "News",
+      "/news/",
+      site.extra_int("menu_news_weight", 40)
+    ),
+    SectionItem(
+      "Get Started",
+      "Get Started",
+      "/#install",
+      site.extra_int("menu_get_started_weight", 50)
+    )
+  ]
+
+fn menu_from_sections(
+  items: List(SectionItem),
+  acc: List(MenuItem)
+) -> List(MenuItem):
+  case items:
+    [] -> acc
+    [item, ..rest] ->
+      menu_from_sections(
+        rest,
+        insert_menu(
+          MenuItem(
+            section_name(item),
+            section_href(item),
+            string.equal(section_name(item), "Get Started"),
+            section_weight(item)
+          ),
+          acc
+        )
+      )
+
+fn insert_menu(item: MenuItem, items: List(MenuItem)) -> List(MenuItem):
+  case items:
+    [] -> [item]
+    [head, ..rest] ->
+      case menu_weight(item) <= menu_weight(head):
+        True -> [item, head, ..rest]
+        False -> [head, ..insert_menu(item, rest)]
+
+fn render_menu(items: List(MenuItem), mobile: Bool, acc: String) -> String:
+  case items:
+    [] -> acc
+    [item, ..rest] ->
+      let label = menu_label(item)
+      let href = menu_href(item)
+      let cls = case menu_cta(item):
+        True ->
+          case mobile:
+            True -> " class=\"mob-cta\""
+            False -> " class=\"nav-cta\""
+        False -> ""
+      let link = case mobile:
+        True -> "<a href=\"" <> href <> "\"" <> cls <> ">" <> label <> "</a>"
+        False ->
+          "<li><a href=\"" <> href <> "\"" <> cls <> ">" <> label <> "</a></li>"
+      render_menu(rest, mobile, acc <> link)
+
+fn menu_label(item: MenuItem) -> String:
+  case item:
+    MenuItem(label, _, _, _) -> label
+
+fn menu_href(item: MenuItem) -> String:
+  case item:
+    MenuItem(_, href, _, _) -> href
+
+fn menu_cta(item: MenuItem) -> Bool:
+  case item:
+    MenuItem(_, _, cta, _) -> cta
+
+fn menu_weight(item: MenuItem) -> Int:
+  case item:
+    MenuItem(_, _, _, weight) -> weight
+
+fn social_cards(config: site.Config) -> String:
+  render_social(section_items("community", default_community(config)), "")
+
+fn default_community(config: site.Config) -> List(SectionItem):
+  [
+    SectionItem(
+      "GitHub",
+      "Star the repos, open issues, and follow compiler and package development.",
+      site.extra_string("github_url", site.social(config)),
+      1
+    )
+  ]
+
+fn render_social(items: List(SectionItem), acc: String) -> String:
+  case items:
+    [] -> acc
+    [item, ..rest] ->
+      render_social(
+        rest,
+        acc <> social_card(section_name(item), section_href(item), section_title(item))
+      )
+
+fn social_card(label: String, href: String, text: String) -> String:
+  case string.is_empty(href):
+    True -> ""
+    False ->
+      "<a href=\"" <> href <> "\" class=\"community-card\">" <> social_icon(label) <> "<h3>" <> label <> "</h3><p>" <> text <> "</p><div class=\"card-link\">" <> href <> " →</div></a>"
+
+fn social_icon(label: String) -> String:
+  case string.equal(string.lowercase(label), "github"):
+    True ->
+      "<svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z\"/></svg>"
+    False ->
+      "<svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><circle cx=\"12\" cy=\"12\" r=\"10\"/></svg>"
+
+fn share_buttons(config: site.Config) -> String:
+  render_share(section_items("share", default_share(config)), "")
+
+fn default_share(config: site.Config) -> List(SectionItem):
+  [
+    SectionItem(
+      "GitHub",
+      "GitHub",
+      site.extra_string("github_url", site.social(config)),
+      1
+    )
+  ]
+
+fn render_share(items: List(SectionItem), acc: String) -> String:
+  case items:
+    [] -> acc
+    [item, ..rest] ->
+      case string.is_empty(section_href(item)):
+        True -> render_share(rest, acc)
+        False ->
+          render_share(
+            rest,
+            acc <> "<a class=\"share-btn\" href=\"" <> section_href(item) <> "\">" <> section_name(item) <> "</a>"
+          )
+
+fn section_items(
+  section: String,
+  fallback: List(SectionItem)
+) -> List(SectionItem):
+  case parsetoml.parse(files.read("config.toml")):
+    parsetoml.Err(_) -> fallback
+    parsetoml.Ok(toml) ->
+      case parsetoml.get_table(toml, section):
+        parsetoml.Err(_) -> fallback
+        parsetoml.Ok(table) ->
+          case table:
+            parsetoml.TomlTable(pairs) ->
+              let items = section_pairs(pairs, [])
+              case list.is_empty(items):
+                True -> fallback
+                False -> items
+            _ -> fallback
+
+fn section_pairs(
+  pairs: List(#(String, parsetoml.TomlValue)),
+  acc: List(SectionItem)
+) -> List(SectionItem):
+  case pairs:
+    [] -> acc
+    [#(key, value), ..rest] ->
+      case value:
+        parsetoml.TomlTable(_) ->
+          section_pairs(
+            rest,
+            insert_section(section_from_table(key, value), acc)
+          )
+        _ -> section_pairs(rest, acc)
+
+fn section_from_table(key: String, table: parsetoml.TomlValue) -> SectionItem:
+  SectionItem(
+    toml_string_any(table, ["Name", "name"], key),
+    toml_string_any(table, ["Title", "title"], ""),
+    toml_string_any(table, ["URL", "url", "href"], ""),
+    toml_int_any(table, ["weight", "Weight"], 100)
+  )
+
+fn insert_section(
+  item: SectionItem,
+  items: List(SectionItem)
+) -> List(SectionItem):
+  case items:
+    [] -> [item]
+    [head, ..rest] ->
+      case section_weight(item) <= section_weight(head):
+        True -> [item, head, ..rest]
+        False -> [head, ..insert_section(item, rest)]
+
+fn section_name(item: SectionItem) -> String:
+  case item:
+    SectionItem(name, _, _, _) -> name
+
+fn section_title(item: SectionItem) -> String:
+  case item:
+    SectionItem(_, title, _, _) -> title
+
+fn section_href(item: SectionItem) -> String:
+  case item:
+    SectionItem(_, _, href, _) -> href
+
+fn section_weight(item: SectionItem) -> Int:
+  case item:
+    SectionItem(_, _, _, weight) -> weight
+
+fn toml_string_any(
+  t: parsetoml.TomlValue,
+  keys: List(String),
+  default_value: String
+) -> String:
+  case keys:
+    [] -> default_value
+    [key, ..rest] ->
+      case parsetoml.get_string(t, key):
+        parsetoml.Ok(s) -> s
+        parsetoml.Err(_) -> toml_string_any(t, rest, default_value)
+
+fn toml_int_any(
+  t: parsetoml.TomlValue,
+  keys: List(String),
+  default_value: Int
+) -> Int:
+  case keys:
+    [] -> default_value
+    [key, ..rest] ->
+      case parsetoml.get_int(t, key):
+        parsetoml.Ok(n) -> n
+        parsetoml.Err(_) -> toml_int_any(t, rest, default_value)
 
 fn render_home_pages(
   config: site.Config,
@@ -183,7 +670,10 @@ fn render_home_pages(
               "title",
               site.title(config) <> " - Page " <> int_to_string(page_num)
             ),
-            #("content", page_cards(config, chunk, "")),
+            #(
+              "content",
+              page_cards(config, chunk, site.posts_per_page(config), "")
+            ),
             #("pagination", pagination(config, pages, page_num))
           ]
         ),

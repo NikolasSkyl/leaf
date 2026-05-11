@@ -137,10 +137,10 @@ fn js_partial() -> String:
   "<script defer src=\"{{asset_base}}/js/app.js\"></script>\n"
 
 fn header() -> String:
-  "<header class=\"site-header\"><a class=\"brand\" href=\"/\">{{site_title}}</a>{{> menu}}</header>\n"
+  "<header class=\"site-header\"><a class=\"brand\" href=\"/\">{{site_title}}</a>{{{menu}}}</header>\n"
 
 fn menu() -> String:
-  "<nav><a href=\"/\">Home</a><a href=\"/about/\">About</a><a href=\"{{social}}\">Social</a></nav>\n"
+  "{{{menu}}}\n"
 
 fn footer() -> String:
   "<footer class=\"site-footer\">&copy; {{year_now}} {{site_title}}. Built with Leaf.</footer>\n"

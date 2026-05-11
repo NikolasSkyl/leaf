@@ -5,7 +5,7 @@ import parsetoml/parsetoml
 import leaf/site
 
 pub type Page:
-  Page(title: String, slug: String, date: String, layout: String, draft: Bool, tags: String, weight: Int, source: String, body: String, read_minutes: Int)
+  Page(title: String, slug: String, date: String, layout: String, draft: Bool, tags: String, weight: Int, lead: String, category: String, source: String, body: String, read_minutes: Int, read_time_label: String)
 
 type Front:
   Front(meta: parsetoml.TomlValue, body: String)
@@ -84,9 +84,12 @@ fn parse(root: String, path: String) -> Page:
     toml_bool(meta, "draft", False),
     tags_string(meta),
     toml_int(meta, "weight", 100),
+    toml_string(meta, "lead", ""),
+    toml_string(meta, "category", ""),
     path,
     body,
-    read_minutes(body)
+    read_minutes(body),
+    toml_string(meta, "read_time", "")
   )
 
 fn split_front_matter(src: String) -> Front:
@@ -200,43 +203,55 @@ fn toml_int(t: parsetoml.TomlValue, key: String, default_value: Int) -> Int:
 
 pub fn title(p: Page) -> String:
   case p:
-    Page(x, _, _, _, _, _, _, _, _, _) -> x
+    Page(x, _, _, _, _, _, _, _, _, _, _, _, _) -> x
 
 pub fn slug(p: Page) -> String:
   case p:
-    Page(_, x, _, _, _, _, _, _, _, _) -> x
+    Page(_, x, _, _, _, _, _, _, _, _, _, _, _) -> x
 
 pub fn date(p: Page) -> String:
   case p:
-    Page(_, _, x, _, _, _, _, _, _, _) -> x
+    Page(_, _, x, _, _, _, _, _, _, _, _, _, _) -> x
 
 pub fn layout(p: Page) -> String:
   case p:
-    Page(_, _, _, x, _, _, _, _, _, _) -> x
+    Page(_, _, _, x, _, _, _, _, _, _, _, _, _) -> x
 
 pub fn draft(p: Page) -> Bool:
   case p:
-    Page(_, _, _, _, x, _, _, _, _, _) -> x
+    Page(_, _, _, _, x, _, _, _, _, _, _, _, _) -> x
 
 pub fn tags(p: Page) -> String:
   case p:
-    Page(_, _, _, _, _, x, _, _, _, _) -> x
+    Page(_, _, _, _, _, x, _, _, _, _, _, _, _) -> x
 
 pub fn weight(p: Page) -> Int:
   case p:
-    Page(_, _, _, _, _, _, x, _, _, _) -> x
+    Page(_, _, _, _, _, _, x, _, _, _, _, _, _) -> x
+
+pub fn lead(p: Page) -> String:
+  case p:
+    Page(_, _, _, _, _, _, _, x, _, _, _, _, _) -> x
+
+pub fn category(p: Page) -> String:
+  case p:
+    Page(_, _, _, _, _, _, _, _, x, _, _, _, _) -> x
 
 pub fn source(p: Page) -> String:
   case p:
-    Page(_, _, _, _, _, _, _, x, _, _) -> x
+    Page(_, _, _, _, _, _, _, _, _, x, _, _, _) -> x
 
 pub fn body(p: Page) -> String:
   case p:
-    Page(_, _, _, _, _, _, _, _, x, _) -> x
+    Page(_, _, _, _, _, _, _, _, _, _, x, _, _) -> x
 
 pub fn read_time(p: Page) -> Int:
   case p:
-    Page(_, _, _, _, _, _, _, _, _, x) -> x
+    Page(_, _, _, _, _, _, _, _, _, _, _, x, _) -> x
+
+pub fn read_time_label(p: Page) -> String:
+  case p:
+    Page(_, _, _, _, _, _, _, _, _, _, _, _, x) -> x
 
 pub fn kind(p: Page) -> String:
   let s = slug(p)

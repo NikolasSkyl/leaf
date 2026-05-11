@@ -88,6 +88,21 @@ pub fn contact(c: Config) -> String:
   case c:
     Config(_, _, _, _, _, _, _, _, _, _, _, x) -> x
 
+pub fn extra_string(key: String, default_value: String) -> String:
+  case parsetoml.parse(files.read("config.toml")):
+    parsetoml.Ok(toml) -> toml_string(toml, key, default_value)
+    parsetoml.Err(_) -> default_value
+
+pub fn extra_int(key: String, default_value: Int) -> Int:
+  case parsetoml.parse(files.read("config.toml")):
+    parsetoml.Ok(toml) -> toml_int(toml, key, default_value)
+    parsetoml.Err(_) -> default_value
+
+pub fn extra_bool(key: String, default_value: Bool) -> Bool:
+  case parsetoml.parse(files.read("config.toml")):
+    parsetoml.Ok(toml) -> toml_bool(toml, key, default_value)
+    parsetoml.Err(_) -> default_value
+
 pub fn theme_dir(c: Config) -> String:
   files.join("themes", theme(c))
 
@@ -101,9 +116,7 @@ pub fn theme_static_dir(c: Config) -> String:
   files.join(theme_dir(c), "static")
 
 pub fn asset_base(c: Config) -> String:
-  case string.is_empty(base_url(c)):
-    True -> "/assets"
-    False -> base_url(c) <> "/assets"
+  extra_string("asset_base", "/assets")
 
 pub fn url(c: Config, path: String) -> String:
   case string.is_empty(base_url(c)):
@@ -122,4 +135,9 @@ fn toml_string(
 fn toml_int(t: parsetoml.TomlValue, key: String, default_value: Int) -> Int:
   case parsetoml.get_int(t, key):
     parsetoml.Ok(n) -> n
+    parsetoml.Err(_) -> default_value
+
+fn toml_bool(t: parsetoml.TomlValue, key: String, default_value: Bool) -> Bool:
+  case parsetoml.get_bool(t, key):
+    parsetoml.Ok(b) -> b
     parsetoml.Err(_) -> default_value

@@ -12,7 +12,7 @@ pub fn run() -> String:
   let _ = files.mkdir(out)
   let _ = copy_static(config)
   let pages = list.reverse(content.collect(config))
-  let rendered = render_pages(config, pages, 0)
+  let rendered = render_pages(config, pages, pages, 0)
   let _ = render.render_home(config, pages)
   let _ = render.render_sitemap(config, pages)
   let _ = render.render_rss(config, pages)
@@ -22,16 +22,17 @@ pub fn run() -> String:
 fn render_pages(
   config: site.Config,
   pages: List(content.Page),
+  all_pages: List(content.Page),
   count: Int
 ) -> Int:
   case pages:
     [] -> count
     [page, ..rest] ->
       case content.slug(page):
-        "index" -> render_pages(config, rest, count)
+        "index" -> render_pages(config, rest, all_pages, count)
         _ ->
-          let _ = render.render_page(config, page)
-          render_pages(config, rest, count + 1)
+          let _ = render.render_page(config, page, all_pages)
+          render_pages(config, rest, all_pages, count + 1)
 
 fn copy_static(config: site.Config) -> Int:
   let out = site.output_dir(config)
