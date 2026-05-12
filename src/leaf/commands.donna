@@ -58,9 +58,7 @@ pub fn serve(port: Int, should_watch: Bool) -> String:
 
 pub fn serve_only(port: Int) -> String:
   let config = site.read()
-  echo ui.ok(
-    "Serving " <> site.output_dir(config) <> " at http://localhost:" <> int_to_string(port)
-  )
+  echo "Serving public at http://localhost:" <> int_to_string(port)
   let _ = mongoose.serve(site.output_dir(config), port)
   ui.ok("Server stopped")
 

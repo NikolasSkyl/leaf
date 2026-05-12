@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+{{> head}}
+<body>
+  {{> header}}
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <img src="/leaf.png" alt="leaf logo" class="hero__logo" />
+
+        <div class="hero__badge">
+          <span class="hero__badge-dot"></span>
+          Open source &amp; MIT licensed
+        </div>
+
+        <h1>Build sites that<br><em>actually ship.</em></h1>
+
+        <p>Leaf is a fast, minimal static site generator written in Donna. Write Markdown, pick a layout, run one command. Done.</p>
+
+        <div class="hero__actions">
+          <a href="/docs/" class="btn btn--primary btn--lg">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+            Get Started
+          </a>
+          <a href="https://github.com/NikolasSkyl/leaf" class="btn btn--ghost btn--lg" target="_blank" rel="noopener noreferrer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+
+        <div class="hero__terminal" aria-label="Terminal example">
+          <pre><code><span class="t-dim"># create a new site</span>
+<span class="t-prompt">$</span> leaf init my-site &amp;&amp; cd my-site
+
+<span class="t-dim"># write content</span>
+<span class="t-prompt">$</span> leaf new posts/hello-world
+
+<span class="t-dim"># preview and rebuild on changes</span>
+<span class="t-prompt">$</span> leaf serve --watch
+<span class="t-out">  Serving public at http://localhost:1313</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="container">
+        <div class="section-header">
+          <h2>Everything you need.<br>Nothing you don't.</h2>
+          <p>Leaf stays out of your way so you can focus on writing.</p>
+        </div>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-card__icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+            <h3>Fast local loop</h3>
+            <p>Build static HTML from Markdown and Mustache layouts, then use <code>serve --watch</code> while you write.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+            <h3>Markdown first</h3>
+            <p>Content is Markdown with TOML front matter. Drafts, tags, dates, weights, and layouts stay in the file.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+            <h3>Flexible layouts</h3>
+            <p>Mustache templates and partials keep themes readable. No template acrobatics required.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></div>
+            <h3>Simple structure</h3>
+            <p>A site is just <code>content/</code>, <code>themes/</code>, optional assets, and a small <code>config.toml</code>.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+            <h3>Themeable</h3>
+            <p>Use the default theme, create your own, or keep only the directories your site actually needs.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4a2 2 0 001-1.73z"/></svg></div>
+            <h3>Deploy anywhere</h3>
+            <p>The output is static HTML, CSS, JavaScript, RSS, and sitemap files. Any static host can serve it.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="quickstart">
+      <div class="container">
+        <div class="quickstart__inner">
+          <div class="quickstart__text">
+            <h2>Up and running in under a minute.</h2>
+            <p>Your project is just files. Leaf gives you defaults, then lets you replace the parts that matter.</p>
+            <a href="/docs/" class="btn btn--primary">Read the docs &rarr;</a>
+          </div>
+          <div>
+            <pre><code>website/
+├── config.toml
+├── content/
+│   ├── _index.md
+│   ├── about.md
+│   └── posts/
+│       └── markdown-tour.md
+└── themes/
+    └── default/
+        ├── assets/
+        │   ├── css/
+        │   └── js/
+        └── layouts/
+            ├── home.html
+            ├── page.html
+            ├── post.html
+            ├── doc.html
+            └── _partials/</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  {{> footer}}
+</body>
+</html>

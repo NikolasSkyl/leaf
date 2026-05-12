@@ -1,11 +1,22 @@
-name: Test
+name: Deploy Website
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -51,19 +62,41 @@ jobs:
           chmod +x "$HOME/.donna/bin/donna"
           echo "$HOME/.donna/bin" >> "$GITHUB_PATH"
 
-      - name: Format
-        run: |
-          donna format
-          git diff --exit-code
-
-      - name: Check
-        run: donna check
-
-      - name: Test
-        run: donna test
+      - name: Build Leaf
+        run: donna build
 
       - name: Build website
         run: |
-          donna build
           cd website
           ../build/bin/leaf build
+
+      - name: Prefix links for project Pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          if [ "$repo_name" != "${GITHUB_REPOSITORY_OWNER}.github.io" ]; then
+            prefix="/$repo_name"
+            find website/public -type f \( -name '*.html' -o -name '*.xml' -o -name '*.webmanifest' \) -print0 \
+              | xargs -0 perl -pi -e "s#(href|src|content)=\"/#\$1=\"$prefix/#g"
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/public
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
