@@ -11,20 +11,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkout Donna tools
-        uses: actions/checkout@v4
+      - name: Cache QBE
+        id: qbe-cache
+        uses: actions/cache@v4
         with:
-          repository: donna-lang/donna
-          path: .donna-tools/compiler
+          path: ~/.local/bin/qbe
+          key: qbe-official-${{ runner.os }}-2026-05-13
 
-      - name: Install build tools and QBE
+      - name: Install QBE
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y build-essential git make
-          make -C .donna-tools/compiler install-qbe
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if [ ! -x "$HOME/.local/bin/qbe" ]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential git make
+            git clone https://c9x.me/git/qbe.git "$RUNNER_TEMP/qbe"
+            make -C "$RUNNER_TEMP/qbe"
+            make -C "$RUNNER_TEMP/qbe" PREFIX="$HOME/.local" install
+          fi
           qbe --version || true
+
+      - name: Cache Donna packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.donna/packages
+          key: donna-packages-${{ runner.os }}-${{ hashFiles('donna.lock') }}
+          restore-keys: |
+            donna-packages-${{ runner.os }}-
 
       - name: Install Donna
         shell: bash
