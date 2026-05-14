@@ -50,10 +50,14 @@ pub fn serve(port: Int, should_watch: Bool) -> String:
   echo built
   case should_watch:
     True ->
+      echo ui.warn("watch currently rebuilds every 2 seconds; use Ctrl-C to stop")
+      let port_str = int_to_string(port)
       let _ = shell.run(
-        "leaf serve-only --port " <> int_to_string(port) <> " >/dev/null 2>&1 &"
+        "trap 'kill $(jobs -p) 2>/dev/null; exit' INT TERM EXIT; " <>
+        "leaf serve-only --port " <> port_str <> " >/dev/null 2>&1 & " <>
+        "while true; do leaf build; sleep 2; done"
       )
-      watch()
+      ui.ok("Server stopped")
     False -> serve_only(port)
 
 pub fn serve_only(port: Int) -> String:
@@ -61,15 +65,6 @@ pub fn serve_only(port: Int) -> String:
   echo "Serving public at http://localhost:" <> int_to_string(port)
   let _ = mongoose.serve(site.output_dir(config), port)
   ui.ok("Server stopped")
-
-fn watch() -> String:
-  echo ui.warn("watch currently rebuilds every 2 seconds; use Ctrl-C to stop")
-  watch_loop()
-
-fn watch_loop() -> String:
-  echo build.run()
-  let _ = shell.run("sleep 2")
-  watch_loop()
 
 fn title_from_slug(slug: String) -> String:
   string.replace(slug, "-", " ")

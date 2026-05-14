@@ -112,6 +112,7 @@ fn values(
       #("category", content.category(page)),
       #("article_tag", first_tag(content.tags(page))),
       #("article_tag_class", tag_class(first_tag(content.tags(page)))),
+      #("article_tags_html", all_tags_html(content.tags(page))),
       #("read_time", int_to_string(content.read_time(page))),
       #("read_time_label", content.read_time_label(page)),
       #("source", content.source(page)),
@@ -195,6 +196,9 @@ fn sorted_docs(
         True -> sorted_docs(rest, insert_page(p, acc))
         False -> sorted_docs(rest, acc)
 
+fn date_int(date: String) -> Int:
+  string.to_int(string.replace(date, "-", ""))
+
 fn insert_page(
   page: content.Page,
   pages: List(content.Page)
@@ -202,7 +206,15 @@ fn insert_page(
   case pages:
     [] -> [page]
     [head, ..rest] ->
-      case content.weight(page) <= content.weight(head):
+      let pw = content.weight(page)
+      let hw = content.weight(head)
+      let before = case pw < hw:
+        True -> True
+        False ->
+          case pw == hw:
+            True -> date_int(content.date(page)) >= date_int(content.date(head))
+            False -> False
+      case before:
         True -> [page, head, ..rest]
         False -> [head, ..insert_page(page, rest)]
 
@@ -290,12 +302,12 @@ fn news_articles(
   case pages:
     [] -> acc
     [p, ..rest] ->
-      let tag = first_tag(content.tags(p))
+      let tags_html = all_tags_html(content.tags(p))
       let read = case string.is_empty(content.read_time_label(p)):
         True -> ""
         False ->
           "<span class=\"read-time\">" <> content.read_time_label(p) <> "</span>"
-      let article = "<article class=\"article\" data-tags=\"" <> content.tags(p) <> "\"><div class=\"article-meta\"><span class=\"article-tag " <> tag_class(tag) <> "\">" <> tag_label(tag) <> "</span><span class=\"article-date\">" <> content.date(p) <> "</span>" <> read <> "</div><h2><a href=\"/" <> content.slug(p) <> "/\">" <> content.title(p) <> "</a></h2><p class=\"article-excerpt\">" <> content.lead(p) <> "</p><div class=\"article-author\"><div class=\"author-avatar\">DL</div><div class=\"author-name\"><strong>" <> site.author(config) <> "</strong></div></div><a href=\"/" <> content.slug(p) <> "/\" class=\"read-more\">Read more →</a></article>"
+      let article = "<article class=\"article\" data-tags=\"" <> content.tags(p) <> "\"><div class=\"article-meta\">" <> tags_html <> "<span class=\"article-date\">" <> content.date(p) <> "</span>" <> read <> "</div><h2><a href=\"/" <> content.slug(p) <> "/\">" <> content.title(p) <> "</a></h2><p class=\"article-excerpt\">" <> content.lead(p) <> "</p><div class=\"article-author\"><div class=\"author-avatar\">DL</div><div class=\"author-name\"><strong>" <> site.author(config) <> "</strong></div></div><a href=\"/" <> content.slug(p) <> "/\" class=\"read-more\">Read more →</a></article>"
       news_articles(config, rest, acc <> article)
 
 fn news_tags(pages: List(content.Page)) -> String:
@@ -339,6 +351,22 @@ fn recent_posts(pages: List(content.Page), count: Int, acc: String) -> String:
             rest,
             count + 1,
             acc <> "<li class=\"recent-item\"><a href=\"/" <> content.slug(p) <> "/\">" <> content.title(p) <> "</a><span>" <> content.date(p) <> "</span></li>"
+          )
+
+fn all_tags_html(tags: String) -> String:
+  render_all_tags(string.split(tags, ","), "")
+
+fn render_all_tags(tags: List(String), acc: String) -> String:
+  case tags:
+    [] -> acc
+    [tag, ..rest] ->
+      let clean = string.trim(tag)
+      case string.is_empty(clean):
+        True -> render_all_tags(rest, acc)
+        False ->
+          render_all_tags(
+            rest,
+            acc <> "<span class=\"article-tag " <> tag_class(clean) <> "\">" <> tag_label(clean) <> "</span>"
           )
 
 fn first_tag(tags: String) -> String:
