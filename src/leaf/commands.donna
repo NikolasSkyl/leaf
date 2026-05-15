@@ -53,9 +53,7 @@ pub fn serve(port: Int, should_watch: Bool) -> String:
       echo ui.warn("watch currently rebuilds every 2 seconds; use Ctrl-C to stop")
       let port_str = int_to_string(port)
       let _ = shell.run(
-        "trap 'kill $(jobs -p) 2>/dev/null; exit' INT TERM EXIT; " <>
-        "leaf serve-only --port " <> port_str <> " >/dev/null 2>&1 & " <>
-        "while true; do leaf build; sleep 2; done"
+        "trap 'kill $(jobs -p) 2>/dev/null; exit' INT TERM EXIT; " <> "leaf serve-only --port " <> port_str <> " >/dev/null 2>&1 & " <> "while true; do leaf build; sleep 2; done"
       )
       ui.ok("Server stopped")
     False -> serve_only(port)
