@@ -22,7 +22,7 @@ rev = "450950ecbaf3e7d47ea61bcea6e92a9e9ddd0ffb"
 
 [packages.mongoose]
 git = "https://github.com/NikolasSkyl/mongoose"
-rev = "f5550c68b9153053ff4e4c1d8bf27cafe62e5129"
+rev = "2a18c0118902bff614d8bae859bce820533ac484"
 
 [packages.unittest]
 git = "https://github.com/donna-lang/unittest"
