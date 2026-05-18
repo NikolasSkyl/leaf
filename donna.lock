@@ -2,7 +2,7 @@
 
 [packages.donna]
 git = "https://github.com/donna-lang/donna_stdlib"
-rev = "9b890a311c5a954063a75f4c0a7a5276409b21a4"
+rev = "264b2cd52ce9390c8a848974ca7a33171d282d9f"
 
 [packages.argparse]
 git = "https://github.com/donna-lang/argparse"
@@ -22,7 +22,7 @@ rev = "450950ecbaf3e7d47ea61bcea6e92a9e9ddd0ffb"
 
 [packages.mongoose]
 git = "https://github.com/NikolasSkyl/mongoose"
-rev = "2a18c0118902bff614d8bae859bce820533ac484"
+rev = "326de649bd4ca82fd173c84569e393925caa9d99"
 
 [packages.unittest]
 git = "https://github.com/donna-lang/unittest"
