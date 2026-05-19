@@ -1,5 +1,6 @@
 import donna/files
 import donna/list
+import donna/path
 import donna/shell
 import leaf/content
 import leaf/render
@@ -36,7 +37,7 @@ fn render_pages(
 
 fn copy_static(config: site.Config) -> Int:
   let out = site.output_dir(config)
-  let out_assets = files.join(out, "assets")
+  let out_assets = path.join(out, "assets")
   let _ = shell.run("rm -rf " <> out_assets)
   let _ = shell.run("mkdir -p " <> out_assets)
   let _ = copy_dir(site.theme_assets_dir(config), out_assets)
@@ -46,5 +47,5 @@ fn copy_static(config: site.Config) -> Int:
 
 fn copy_dir(src: String, dst: String) -> Int:
   case files.is_dir(src):
-    True -> shell.run("cp -R " <> files.join(src, ".") <> " " <> dst)
+    True -> shell.run("cp -R " <> path.join(src, ".") <> " " <> dst)
     False -> 0

@@ -1,5 +1,6 @@
 import parsetoml/parsetoml
 import donna/files
+import donna/path
 import donna/string
 
 pub type Config:
@@ -104,16 +105,16 @@ pub fn extra_bool(key: String, default_value: Bool) -> Bool:
     parsetoml.Err(_) -> default_value
 
 pub fn theme_dir(c: Config) -> String:
-  files.join("themes", theme(c))
+  path.join("themes", theme(c))
 
 pub fn layouts_dir(c: Config) -> String:
-  files.join(theme_dir(c), "layouts")
+  path.join(theme_dir(c), "layouts")
 
 pub fn theme_assets_dir(c: Config) -> String:
-  files.join(theme_dir(c), "assets")
+  path.join(theme_dir(c), "assets")
 
 pub fn theme_static_dir(c: Config) -> String:
-  files.join(theme_dir(c), "static")
+  path.join(theme_dir(c), "static")
 
 pub fn asset_base(c: Config) -> String:
   extra_string("asset_base", "/assets")

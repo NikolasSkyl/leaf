@@ -1,5 +1,6 @@
 import donna/files
 import donna/list
+import donna/path
 import donna/shell
 import donna/string
 import markdown
@@ -28,7 +29,7 @@ pub fn render_page(
     partials(config)
   )
   let path = output_path(config, content.slug(page))
-  let _ = shell.run("mkdir -p " <> files.dirname(path))
+  let _ = shell.run("mkdir -p " <> path.dirname(path))
   files.write(path, output)
 
 pub fn render_home(config: site.Config, pages: List(content.Page)) -> Int:
@@ -46,7 +47,7 @@ pub fn render_home(config: site.Config, pages: List(content.Page)) -> Int:
     ),
     partials(config)
   )
-  let _ = files.write(files.join(site.output_dir(config), "index.html"), output)
+  let _ = files.write(path.join(site.output_dir(config), "index.html"), output)
   render_home_pages(
     config,
     layout,
@@ -60,33 +61,33 @@ pub fn render_sitemap(config: site.Config, pages: List(content.Page)) -> Int:
     pages,
     "  <url><loc>" <> site.url(config, "") <> "</loc></url>\n"
   ) <> "</urlset>\n"
-  files.write(files.join(site.output_dir(config), "sitemap.xml"), xml)
+  files.write(path.join(site.output_dir(config), "sitemap.xml"), xml)
 
 pub fn render_rss(config: site.Config, pages: List(content.Page)) -> Int:
   let xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" <> "<rss version=\"2.0\"><channel>\n" <> "<title>" <> site.title(config) <> "</title>\n" <> "<link>" <> site.base_url(config) <> "</link>\n" <> "<description>" <> site.title(config) <> "</description>\n" <> rss_items(config, pages, "") <> "</channel></rss>\n"
-  files.write(files.join(site.output_dir(config), "rss.xml"), xml)
+  files.write(path.join(site.output_dir(config), "rss.xml"), xml)
 
 pub fn render_feed_alias(config: site.Config) -> Int:
   files.copy(
-    files.join(site.output_dir(config), "rss.xml"),
-    files.join(site.output_dir(config), "feed.xml")
+    path.join(site.output_dir(config), "rss.xml"),
+    path.join(site.output_dir(config), "feed.xml")
   )
 
 fn read_layout(config: site.Config, name: String) -> String:
-  let path = files.join(site.layouts_dir(config), name <> ".html")
+  let path = path.join(site.layouts_dir(config), name <> ".html")
   case files.exists(path):
     True -> files.read(path)
-    False -> files.read(files.join(site.layouts_dir(config), "page.html"))
+    False -> files.read(path.join(site.layouts_dir(config), "page.html"))
 
 fn partials(config: site.Config) -> List(#(String, String)):
-  let dir = files.join(site.layouts_dir(config), "_partials")
+  let dir = path.join(site.layouts_dir(config), "_partials")
   [
-    #("head", files.read(files.join(dir, "head.html"))),
-    #("head_css", files.read(files.join(files.join(dir, "head"), "css.html"))),
-    #("head_js", files.read(files.join(files.join(dir, "head"), "js.html"))),
-    #("header", files.read(files.join(dir, "header.html"))),
-    #("footer", files.read(files.join(dir, "footer.html"))),
-    #("post_card", files.read(files.join(dir, "post_card.html")))
+    #("head", files.read(path.join(dir, "head.html"))),
+    #("head_css", files.read(path.join(path.join(dir, "head"), "css.html"))),
+    #("head_js", files.read(path.join(path.join(dir, "head"), "js.html"))),
+    #("header", files.read(path.join(dir, "header.html"))),
+    #("footer", files.read(path.join(dir, "footer.html"))),
+    #("post_card", files.read(path.join(dir, "post_card.html")))
   ]
 
 fn values(
@@ -684,9 +685,9 @@ fn render_home_pages(
     True -> 0
     False ->
       let chunk = list.take(pages, site.posts_per_page(config))
-      let out_dir = files.join(
+      let out_dir = path.join(
         site.output_dir(config),
-        files.join("page", int_to_string(page_num))
+        path.join("page", int_to_string(page_num))
       )
       let _ = shell.run("mkdir -p " <> out_dir)
       let output = mustache.render_with_partials(
@@ -707,7 +708,7 @@ fn render_home_pages(
         ),
         partials(config)
       )
-      let _ = files.write(files.join(out_dir, "index.html"), output)
+      let _ = files.write(path.join(out_dir, "index.html"), output)
       render_home_pages(
         config,
         layout,
@@ -729,8 +730,8 @@ fn pagination(
 
 fn output_path(config: site.Config, slug: String) -> String:
   case string.equal(slug, "index"):
-    True -> files.join(site.output_dir(config), "index.html")
-    False -> files.join(files.join(site.output_dir(config), slug), "index.html")
+    True -> path.join(site.output_dir(config), "index.html")
+    False -> path.join(path.join(site.output_dir(config), slug), "index.html")
 
 fn sitemap_urls(
   config: site.Config,

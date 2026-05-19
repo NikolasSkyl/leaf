@@ -1,5 +1,7 @@
 import donna/files
+import donna/io
 import donna/list
+import donna/path
 import donna/shell
 import donna/string
 import leaf/build
@@ -22,7 +24,7 @@ pub fn new(kind: String, slug: String) -> String:
   case files.exists(path):
     True -> ui.warn("Content already exists: " <> path)
     False ->
-      let _ = shell.run("mkdir -p " <> files.dirname(path))
+      let _ = shell.run("mkdir -p " <> path.dirname(path))
       let raw = scaffold.archetype_for(normalized)
       let rendered = string.replace(
         string.replace(
@@ -47,10 +49,12 @@ pub fn clean() -> String:
 
 pub fn serve(port: Int, should_watch: Bool) -> String:
   let built = build.run()
-  echo built
+  io.println(built)
   case should_watch:
     True ->
-      echo ui.warn("watch currently rebuilds every 2 seconds; use Ctrl-C to stop")
+      io.println(
+        ui.warn("watch currently rebuilds every 2 seconds; use Ctrl-C to stop")
+      )
       let port_str = int_to_string(port)
       let _ = shell.run(
         "trap 'kill $(jobs -p) 2>/dev/null; exit' INT TERM EXIT; " <> "leaf serve-only --port " <> port_str <> " >/dev/null 2>&1 & " <> "while true; do leaf build; sleep 2; done"
@@ -60,7 +64,7 @@ pub fn serve(port: Int, should_watch: Bool) -> String:
 
 pub fn serve_only(port: Int) -> String:
   let config = site.read()
-  echo "Serving public at http://localhost:" <> int_to_string(port)
+  io.println("Serving public at http://localhost:" <> int_to_string(port))
   let _ = mongoose.serve(site.output_dir(config), port)
   ui.ok("Server stopped")
 
@@ -78,17 +82,17 @@ pub fn doctor() -> String:
       #("layouts", files.is_dir(site.layouts_dir(config))),
       #(
         "page layout",
-        files.exists(files.join(site.layouts_dir(config), "page.html"))
+        files.exists(path.join(site.layouts_dir(config), "page.html"))
       ),
       #(
         "home layout",
-        files.exists(files.join(site.layouts_dir(config), "home.html"))
+        files.exists(path.join(site.layouts_dir(config), "home.html"))
       ),
       #(
         "post card partial",
         files.exists(
-          files.join(
-            files.join(site.layouts_dir(config), "_partials"),
+          path.join(
+            path.join(site.layouts_dir(config), "_partials"),
             "post_card.html"
           )
         )
@@ -151,10 +155,10 @@ fn normalize_slug(kind: String, slug: String) -> String:
 
 fn content_path(kind: String, slug: String) -> String:
   case kind:
-    "page" -> files.join("content", slug <> ".md")
-    "doc" -> files.join(files.join("content", "docs"), slug <> ".md")
-    "book" -> files.join(files.join("content", "books"), slug <> ".md")
-    _ -> files.join(files.join("content", "posts"), slug <> ".md")
+    "page" -> path.join("content", slug <> ".md")
+    "doc" -> path.join(path.join("content", "docs"), slug <> ".md")
+    "book" -> path.join(path.join("content", "books"), slug <> ".md")
+    _ -> path.join(path.join("content", "posts"), slug <> ".md")
 
 fn content_slug(kind: String, slug: String) -> String:
   case kind:

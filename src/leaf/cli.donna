@@ -1,4 +1,5 @@
 import argparse
+import donna/io
 import donna/string
 import leaf/commands
 import leaf/ui
@@ -8,10 +9,10 @@ pub fn run() -> Nil:
   let pos = argparse.positional(args)
   let cmd = first(pos, "build")
   case wants_help(args, cmd):
-    True -> echo ui.help()
+    True -> io.println(ui.help())
     False ->
       case wants_version(args, cmd):
-        True -> echo ui.version
+        True -> io.println(ui.version)
         False -> dispatch(args, pos, cmd)
 
 fn dispatch(
@@ -20,17 +21,19 @@ fn dispatch(
   cmd: String
 ) -> Nil:
   case cmd:
-    "init" -> echo commands.init(second(pos, "site"))
-    "theme" -> echo commands.theme(second(pos, "default"))
-    "new" -> echo commands.new(second(pos, "post"), third(pos, "untitled"))
-    "build" -> echo commands.build()
-    "serve" -> echo commands.serve(port(args), argparse.has(args, "watch"))
-    "serve-only" -> echo commands.serve_only(port(args))
-    "clean" -> echo commands.clean()
-    "doctor" -> echo commands.doctor()
-    "list" -> echo commands.list_content()
-    "help" -> echo ui.help()
-    _ -> echo ui.help()
+    "init" -> io.println(commands.init(second(pos, "site")))
+    "theme" -> io.println(commands.theme(second(pos, "default")))
+    "new" ->
+      io.println(commands.new(second(pos, "post"), third(pos, "untitled")))
+    "build" -> io.println(commands.build())
+    "serve" ->
+      io.println(commands.serve(port(args), argparse.has(args, "watch")))
+    "serve-only" -> io.println(commands.serve_only(port(args)))
+    "clean" -> io.println(commands.clean())
+    "doctor" -> io.println(commands.doctor())
+    "list" -> io.println(commands.list_content())
+    "help" -> io.println(ui.help())
+    _ -> io.println(ui.help())
 
 fn wants_help(args: List(#(String, String)), cmd: String) -> Bool:
   argparse.has(args, "h") || argparse.has(args, "help") || string.equal(cmd, "-h") || string.equal(cmd, "--help")
